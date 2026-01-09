@@ -17,7 +17,7 @@ set -euo pipefail # exit on error, undef vars, or failed pipeline
 set -o errtrace   # inherit ERR trap by functions, command subs, subshells 
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/CONFIG.sh"
+source "${SCRIPT_DIR}/../CONFIG.sh"
 
 # === Configuration ===
 MEALIE_BACKUP_URL="https://mealie.${TS_DOMAIN}/api/admin/backups" # mealie api
