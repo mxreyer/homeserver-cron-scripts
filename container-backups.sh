@@ -1,0 +1,188 @@
+#!/bin/bash
+# ==============================================================================
+# Script Name: container-backups.sh
+# Description: Create borg backups for my docker compose projects. Should be
+#               scheduled with cron, e.g.
+#               0 3 * * 1 /bin/bash -c '$HOME/backup/container-backups.sh
+# Preparation:
+#     - Initialize borg repos (borg init --encryption=repokey /path/to/repo)
+#       (Can be carried out with borg-action.sh)
+#     - Store Borg passphrase in .borg-pass-XXX (chmod 600).
+#     - Set up the scripts in trigger-backup-scripts (API keys etc)
+#
+# Notes:
+#     - For some services, simply all bind mounts and volumes are archived
+#       (after stopping containers). In all cases, we should be able to quickly
+#       restore from these backups. For some other services (where available),
+#       databases are dumped for safety, too, or internal backup scripts are
+#       called to create wholly docker-agnostic backups as fallback (e.g.
+#       paperless, mealie). This is set up in the scripts under
+#       `trigger-backup-scripts`
+#     - The tailscale and caddy sidecar container volumes are included, but
+#       they should actually not be required. We may decide to exclude them
+#       when executing borg extract (see below). If we exclude them, we may
+#       need to `docker volume rm` them so that docker can re-generate them
+#       cleanly.
+#     - Nextcloud is backed up via its own borg tool. The mastercontainer is
+#       not backed up at all.
+#     - As long as no containers are specified with -c, the following commands
+#       stop all containers before appending binds and volumes to borg
+#     - Because ${DOCKER_BINDS_DIR} is not explicitly part ot the backups,
+#       borg does not store ownership information about this dir. When
+#       extracting the backups using `sudo borg extract`, borg creates this dir
+#       with root as owner if not already present. Thus, must either fix ownership
+#       after extraction using chmod (non-recursive) or make sure that the
+#       folder already exists with proper ownership.
+#
+# Restore:
+#     - call borg extract from /. This puts the docker-binds and
+#       /var/lib/docker/volume directories are put into the proper locations.
+#       This is automated in docker-action.sh (the script allows to exclude
+#       tailscale and caddy sidecar volumes).
+#     - docker-action.sh may be used to mount the repos for inspection, too.
+#     - Regarding the restoration of docker-agnostic backups and proper database dumps,
+#       cf to the documentation of the corresponding compose projects.
+# ==============================================================================
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/CONFIG.sh"
+
+BACKUP_SCRIPT="${SCRIPT_DIR}/docker-service-backup.sh"
+
+tmp_docker_file=$(mktemp)
+source "${SCRIPT_DIR}/ping.sh"
+
+# === Traps, error handling === #
+on_exit() {
+    rm "$tmp_docker_file"
+}
+trap on_exit EXIT
+
+# === Script logic === #
+
+# paperless
+# On top of backing up bind mounts and volumes, create full docker-agnostic
+# backup using "document exporter", see paperless-trigger-backup.sh
+"$BACKUP_SCRIPT" \
+    -p ${SCRIPT_DIR}/.borg-pass-paperless \
+    -u "$HCHK_PAPERLESS" \
+    -i "${SCRIPT_DIR}/trigger-backup-scripts/paperless-trigger-backup.sh" \
+    -y ${DOCKER_COMPOSE_DIR}/paperless/compose.yaml \
+    -s ${DOCKER_BINDS_DIR}/paperless/ \
+    -s ${DOCKER_VOL_LOC}/paperless_caddy_certs \
+    -s ${DOCKER_VOL_LOC}/paperless_caddy_config \
+    -s ${DOCKER_VOL_LOC}/paperless_caddy_data \
+    -s ${DOCKER_VOL_LOC}/paperless_data \
+    -s ${DOCKER_VOL_LOC}/paperless_media \
+    -s ${DOCKER_VOL_LOC}/paperless_pgdata \
+    -s ${DOCKER_VOL_LOC}/paperless_redisdata \
+    -s ${DOCKER_VOL_LOC}/paperless_tailscale_sock \
+    -d "${BACKUP_LOC}/paperless/borg" 2>&1 \
+    | tee ${SCRIPT_DIR}/logs/paperless.log
+
+# immich
+# On top of backing up bind mounts and volumes, the postgres database is
+# explicitly dumped for safety, see immich-trigger-backup.sh
+"$BACKUP_SCRIPT" \
+    -p ${SCRIPT_DIR}/.borg-pass-immich \
+    -u "$HCHK_IMMICH" \
+    -i "${SCRIPT_DIR}/trigger-backup-scripts/immich-trigger-backup.sh" \
+    -y ${DOCKER_COMPOSE_DIR}/immich/compose.yaml \
+    -C immich-server -C immich-machine-learning -C redis \
+    -s ${DOCKER_BINDS_DIR}/immich \
+    -s ${DOCKER_VOL_LOC}/immich_model-cache \
+    -e ${DOCKER_BINDS_DIR}/immich/library/thumbs/ \
+    -e ${DOCKER_BINDS_DIR}/immich/library/encoded-video/ \
+    -d "${BACKUP_LOC}/immich/borg" \
+    | tee ${SCRIPT_DIR}/logs/immich.log
+
+# beszel
+# On top of backing up bind mounts and volumes, create full docker-agnostic
+# backup using beszel API, see beszel-trigger-backup.sh
+"$BACKUP_SCRIPT" \
+    -p ${SCRIPT_DIR}/.borg-pass-beszel \
+    -u "$HCHK_BESZEL" \
+    -i "${SCRIPT_DIR}/trigger-backup-scripts/beszel-trigger-backup.sh" \
+    -y ${DOCKER_COMPOSE_DIR}/beszel/compose.yaml \
+    -s ${DOCKER_BINDS_DIR}/beszel \
+    -d "${BACKUP_LOC}/beszel/borg" \
+    | tee ${SCRIPT_DIR}/logs/beszel.log
+
+# healthchecks
+# On top of backing up bind mounts and volumes, create full docker-agnostic
+# backup using database dump, see healthchecks-trigger-backup.sh
+"$BACKUP_SCRIPT" \
+    -p ${SCRIPT_DIR}/.borg-pass-healthchecks \
+    -u "$HCHK_HEALTHCHECKS" \
+    -i "${SCRIPT_DIR}/trigger-backup-scripts/healthchecks-trigger-backup.sh" \
+    -y ${DOCKER_COMPOSE_DIR}/healthchecks/compose.yaml \
+    -C web \
+    -s ${DOCKER_BINDS_DIR}/healthchecks \
+    -s ${DOCKER_VOL_LOC}/healthchecks_caddy_certs \
+    -s ${DOCKER_VOL_LOC}/healthchecks_caddy_config \
+    -s ${DOCKER_VOL_LOC}/healthchecks_caddy_data \
+    -s ${DOCKER_VOL_LOC}/healthchecks_db_data \
+    -s ${DOCKER_VOL_LOC}/healthchecks_tailscale_sock \
+    -d "${BACKUP_LOC}/healthchecks/borg" \
+    | tee ${SCRIPT_DIR}/logs/healthchecks.log
+
+# mealie
+# On top of backing up bind mounts and volumes, create full docker-agnostic
+# backup using mealie API, see mealie-trigger-backup.sh
+"$BACKUP_SCRIPT" \
+    -p ${SCRIPT_DIR}/.borg-pass-mealie \
+    -u "$HCHK_MEALIE" \
+    -i "${SCRIPT_DIR}/trigger-backup-scripts/mealie-trigger-backup.sh" \
+    -y ${DOCKER_COMPOSE_DIR}/mealie/compose.yaml \
+    -s ${DOCKER_BINDS_DIR}/mealie \
+    -s ${DOCKER_VOL_LOC}/mealie_data \
+    -d "${BACKUP_LOC}/mealie/borg" \
+    | tee ${SCRIPT_DIR}/logs/mealie.log
+
+# ollama
+"$BACKUP_SCRIPT" \
+    -p ${SCRIPT_DIR}/.borg-pass-ollama \
+    -u "$HCHK_OLLAMA" \
+    -y ${DOCKER_COMPOSE_DIR}/ollama/compose.yaml \
+    -s ${DOCKER_BINDS_DIR}/ollama \
+    -s ${DOCKER_VOL_LOC}/ollama_ollama_data/ \
+    -s ${DOCKER_VOL_LOC}/ollama_ollama_webui_data/ \
+    -d "${BACKUP_LOC}/ollama/borg" \
+    | tee ${SCRIPT_DIR}/logs/ollama.log
+
+# searxng
+"$BACKUP_SCRIPT" \
+    -p ${SCRIPT_DIR}/.borg-pass-searxng \
+    -u "$HCHK_SEARXNG" \
+    -y ${DOCKER_COMPOSE_DIR}/searxng/compose.yaml \
+    -s ${DOCKER_BINDS_DIR}/searxng \
+    -s ${DOCKER_VOL_LOC}/searxng_searxng-data \
+    -s ${DOCKER_VOL_LOC}/searxng_valkey-data2 \
+    -d "${BACKUP_LOC}/searxng/borg" \
+    | tee ${SCRIPT_DIR}/logs/searxng.log
+
+# stirling
+"$BACKUP_SCRIPT" \
+    -p ${SCRIPT_DIR}/.borg-pass-stirling \
+    -u "$HCHK_STIRLING" \
+    -y ${DOCKER_COMPOSE_DIR}/stirling/compose.yaml \
+    -s ${DOCKER_BINDS_DIR}/stirling \
+    -s ${DOCKER_VOL_LOC}/stirling_caddy_certs \
+    -s ${DOCKER_VOL_LOC}/stirling_caddy_config \
+    -s ${DOCKER_VOL_LOC}/stirling_caddy_data \
+    -s ${DOCKER_VOL_LOC}/stirling_tailscale_sock \
+    -d "${BACKUP_LOC}/stirling/borg" \
+    | tee ${SCRIPT_DIR}/logs/stirling.log
+#
+# template
+#"$BACKUP_SCRIPT" \
+#    -p ${SCRIPT_DIR}/.borg-pass- \
+#    -u "https://hc-ping.com/XXX" \
+#    -i "${SCRIPT_DIR}/trigger-backup-scripts/XXX-trigger-backup.sh" \
+#    -y ${DOCKER_COMPOSE_DIR}/XXX/compose.yaml \
+#    -c container_post\
+#    -C container_pre\
+#    -s ${DOCKER_BINDS_DIR}/paperless/consume/ \
+#    -s ${DOCKER_VOL_LOC}/XXX \ 
+#    -d "${BACKUP_LOC}/paperless/borg"
+#    -f "--verbose" \
