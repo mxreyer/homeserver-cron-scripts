@@ -14,7 +14,7 @@ set -euo pipefail # exit on error, undef vars, or failed pipeline
 set -o errtrace   # inherit ERR trap by functions, command subs, subshells 
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/CONFIG.sh"
+source "${SCRIPT_DIR}/../CONFIG.sh"
 
 #should first stop web container...
 #docker compose -f "${DOCKER_COMPOSE_DIR}/healthchecks/compose.yaml" stop web 
