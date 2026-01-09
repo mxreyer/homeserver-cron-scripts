@@ -17,9 +17,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/CONFIG.sh"
 
 #should first stop web container...
-#docker compose -f $HOME/docker/healthchecks/compose.yaml stop web 
+#docker compose -f "${DOCKER_COMPOSE_DIR}/healthchecks/compose.yaml" stop web 
 #... and then restart
-##trap 'docker compose -f $HOME/docker/healthchecks/compose.yaml start web' EXIT
+##trap 'docker compose -f "${DOCKER_COMPOSE_DIR}/healthchecks/compose.yaml" start web' EXIT
 
 # === Configuration ===
 TMP_BACKUP_DIR="${DOCKER_BINDS_DIR}/healthchecks/backup"
