@@ -4,7 +4,7 @@
 # Description : Clones the pi server's disk to an external hard drive so that
 #               it can quickly be brought back in case of desaster. Should be
 #               scheduled with cron, e.g.
-#               0 3 * * 1 /bin/bash -c '$HOME/backup/pi-clone.sh >> $HOME/backup/logs/pi-clone.log 2>&1'
+#               0 3 * * 1 /bin/bash -c '<scriptdir>/pi-clone.sh >> <scriptdir>/logs/pi-clone.log 2>&1'
 # Notes:
 #     - Prior to the first run, the target disk should be initialized.
 #     - In case extra data partitions on the target disk are desired, check

@@ -3,7 +3,7 @@
 # Script Name: server-health-ping.sh
 # Description : Ping healthcheck to signal that server is alive. Should be
 #               scheduled with cron, e.g.
-#               0 * * * * /bin/bash -c '$HOME/ping/server-health-ping.sh >> $HOME/ping/server-health-ping.log 2>&1'
+#               0 * * * * /bin/bash -c '<scriptdir>/server-health-ping.sh >> <scriptdir>/server-health-ping.log 2>&1'
 # ==============================================================================
 
 set -euo pipefail # exit on error, undef vars, or failed pipeline

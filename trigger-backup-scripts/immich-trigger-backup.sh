@@ -17,8 +17,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/CONFIG.sh"
 
 # should stop and later restart containers...
-#docker compose -f $HOME/docker/immich/compose.yaml stop immich-server immich-machine-learning redis
-#trap 'docker compose -f $HOME/docker/immich/compose.yaml start redis immich-machine-learning immich-server' EXIT
+#docker compose -f "$DOCKER_COMPOSE_DIR/immich/compose.yaml stop immich-server immich-machine-learning redis"
+#trap 'docker compose -f "$DOCKER_COMPOSE_DIR/immich/compose.yaml start redis immich-machine-learning immich-server' EXIT"
 
 # === Configuration ===
 IMMICH_UPLOAD_LOCATION="${DOCKER_BINDS_DIR}/immich/library"

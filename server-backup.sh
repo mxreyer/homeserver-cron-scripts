@@ -3,7 +3,7 @@
 # Script Name: server-backup.sh
 # Description : Back up server data via borg. Docker data is excluded.
 #               Should be scheduled with cron, e.g.
-#               0 3 * * * /bin/bash -c '$HOME/backup/pi-backup.sh >> $HOME/backup/logs/pi-backup.log 2>&1'
+#               0 3 * * * /bin/bash -c '<scriptdir>/pi-backup.sh >> <scriptdir>/logs/pi-backup.log 2>&1'
 # Preparation:
 #     - Initialize borg repos (borg init --encryption=repokey /path/to/repo)
 #     - Store Borg passphrase in .borg-pass-XXX (chmod 600).

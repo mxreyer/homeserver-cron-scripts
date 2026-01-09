@@ -3,7 +3,7 @@
 # Script Name: container-backups.sh
 # Description: Create borg backups for my docker compose projects. Should be
 #               scheduled with cron, e.g.
-#               0 3 * * 1 /bin/bash -c '$HOME/backup/container-backups.sh
+#               0 3 * * 1 /bin/bash -c '<scriptdir>/container-backups.sh'
 # Preparation:
 #     - Initialize borg repos (borg init --encryption=repokey /path/to/repo)
 #       (Can be carried out with borg-action.sh)
