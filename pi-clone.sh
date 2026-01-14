@@ -6,7 +6,7 @@
 #               scheduled with cron, e.g.
 #               0 3 * * 1 /bin/bash -c '<scriptdir>/pi-clone.sh >> <scriptdir>/logs/pi-clone.log 2>&1'
 # Notes:
-#     - Prior to the first run, the target disk should be initialized.
+#     - Prior to the first run, the target disk should be initialized by running rpi-clone w/o -u flag.
 #     - In case extra data partitions on the target disk are desired, check
 #       https://github.com/geerlingguy/rpi-clone?tab=readme-ov-file#7-clone-sd-card-to-usb-disk-with-extra-partitions 
 # ==============================================================================
