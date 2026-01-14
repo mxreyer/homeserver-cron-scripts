@@ -21,7 +21,7 @@ source "${SCRIPT_DIR}/CONFIG.sh"
 sudo dpkg --get-selections | sudo tee /root/pkglist.txt > /dev/null
 
 BACKUP_DESTS=("${BACKUP_LOC}/server/borg" "${BACKUP_SSH}/server/borg")
-BACKUP_SRCS=(/etc /home /root /usr/local /opt /var/lib /var/spool/cron/ /boot /mnt)
+BACKUP_SRCS=(/etc /home /root /usr/local /opt /var/lib /var/spool/cron/ /boot /mnt $ADD_SERVER_BACKUP_SOURCES)
 BACKUP_EXCL=(/var/lib/docker /var/lib/containers /var/cache /var/tmp /mnt/backup)
 BORG_FLAGS="--verbose --stats --show-rc"
 BORG_PASS_FILE="${SCRIPT_DIR}/.borg-pass-server"
