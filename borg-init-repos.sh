@@ -26,7 +26,7 @@ on_error() {
 }
 trap on_error ERR
 
-for dir in beszel healthchecks immich mealie ollama paperless searxng stirling; do
+for dir in beszel healthchecks immich mealie ollama paperless searxng stirling server; do
 
 	echo '------------------------------------'
 	echo $dir
