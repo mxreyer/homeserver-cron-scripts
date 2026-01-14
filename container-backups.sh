@@ -77,8 +77,11 @@ trap on_exit EXIT
     -s ${DOCKER_VOL_LOC}/paperless_pgdata \
     -s ${DOCKER_VOL_LOC}/paperless_redisdata \
     -s ${DOCKER_VOL_LOC}/paperless_tailscale_sock \
-    -d "${BACKUP_LOC}/paperless/borg" 2>&1 \
+    -d "${BACKUP_LOC}/paperless/borg" \
+    -d "${BACKUP_SSH}/paperless/borg" \
+    2>&1 \
     | tee ${SCRIPT_DIR}/logs/paperless.log
+    #-d "${BACKUP_SSH}/paperless/borg" \
 
 # immich
 # On top of backing up bind mounts and volumes, the postgres database is
@@ -94,6 +97,8 @@ trap on_exit EXIT
     -e ${DOCKER_BINDS_DIR}/immich/library/thumbs/ \
     -e ${DOCKER_BINDS_DIR}/immich/library/encoded-video/ \
     -d "${BACKUP_LOC}/immich/borg" \
+    -d "${BACKUP_SSH}/immich/borg" \
+    2>&1 \
     | tee ${SCRIPT_DIR}/logs/immich.log
 
 # beszel
@@ -106,6 +111,8 @@ trap on_exit EXIT
     -y ${DOCKER_COMPOSE_DIR}/beszel/compose.yaml \
     -s ${DOCKER_BINDS_DIR}/beszel \
     -d "${BACKUP_LOC}/beszel/borg" \
+    -d "${BACKUP_SSH}/beszel/borg" \
+    2>&1 \
     | tee ${SCRIPT_DIR}/logs/beszel.log
 
 # healthchecks
@@ -124,6 +131,8 @@ trap on_exit EXIT
     -s ${DOCKER_VOL_LOC}/healthchecks_db_data \
     -s ${DOCKER_VOL_LOC}/healthchecks_tailscale_sock \
     -d "${BACKUP_LOC}/healthchecks/borg" \
+    -d "${BACKUP_SSH}/healthchecks/borg" \
+    2>&1 \
     | tee ${SCRIPT_DIR}/logs/healthchecks.log
 
 # mealie
@@ -137,6 +146,8 @@ trap on_exit EXIT
     -s ${DOCKER_BINDS_DIR}/mealie \
     -s ${DOCKER_VOL_LOC}/mealie_data \
     -d "${BACKUP_LOC}/mealie/borg" \
+    -d "${BACKUP_SSH}/mealie/borg" \
+    2>&1 \
     | tee ${SCRIPT_DIR}/logs/mealie.log
 
 # ollama
@@ -148,6 +159,8 @@ trap on_exit EXIT
     -s ${DOCKER_VOL_LOC}/ollama_ollama_data/ \
     -s ${DOCKER_VOL_LOC}/ollama_ollama_webui_data/ \
     -d "${BACKUP_LOC}/ollama/borg" \
+    -d "${BACKUP_SSH}/ollama/borg" \
+    2>&1 \
     | tee ${SCRIPT_DIR}/logs/ollama.log
 
 # searxng
@@ -159,6 +172,8 @@ trap on_exit EXIT
     -s ${DOCKER_VOL_LOC}/searxng_searxng-data \
     -s ${DOCKER_VOL_LOC}/searxng_valkey-data2 \
     -d "${BACKUP_LOC}/searxng/borg" \
+    -d "${BACKUP_SSH}/searxng/borg" \
+    2>&1 \
     | tee ${SCRIPT_DIR}/logs/searxng.log
 
 # stirling
@@ -172,6 +187,8 @@ trap on_exit EXIT
     -s ${DOCKER_VOL_LOC}/stirling_caddy_data \
     -s ${DOCKER_VOL_LOC}/stirling_tailscale_sock \
     -d "${BACKUP_LOC}/stirling/borg" \
+    -d "${BACKUP_SSH}/stirling/borg" \
+    2>&1 \
     | tee ${SCRIPT_DIR}/logs/stirling.log
 #
 # template
@@ -185,4 +202,5 @@ trap on_exit EXIT
 #    -s ${DOCKER_BINDS_DIR}/paperless/consume/ \
 #    -s ${DOCKER_VOL_LOC}/XXX \ 
 #    -d "${BACKUP_LOC}/paperless/borg"
+#    -d "${BACKUP_SSH}/paperless/borg"
 #    -f "--verbose" \

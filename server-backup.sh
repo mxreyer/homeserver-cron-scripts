@@ -20,7 +20,7 @@ source "${SCRIPT_DIR}/CONFIG.sh"
 # create package list
 sudo dpkg --get-selections | sudo tee /root/pkglist.txt > /dev/null
 
-BACKUP_DESTS=("${BACKUP_LOC}/server/borg")
+BACKUP_DESTS=("${BACKUP_LOC}/server/borg" "${BACKUP_SSH}/server/borg")
 BACKUP_SRCS=(/etc /home /root /usr/local /opt /var/lib /var/spool/cron/ /boot)
 BACKUP_EXCL=(/var/lib/docker /var/lib/containers /var/cache /var/tmp)
 BORG_FLAGS="--verbose --stats --show-rc"
