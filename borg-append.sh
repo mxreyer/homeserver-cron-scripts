@@ -20,12 +20,14 @@ BACKUP_SRCS=()
 BACKUP_DESTS=()
 BACKUP_EXCL=()
 BORG_PASS_FILE=""
-while getopts "s:d:e:p:" opt; do
+BORG_CHECK=""
+while getopts "s:d:e:p:c" opt; do
     case "$opt" in
 	s) BACKUP_SRCS+=("$OPTARG") ;;
 	d) BACKUP_DESTS+=("$OPTARG") ;;
 	e) BACKUP_EXCL+=("$OPTARG") ;;
         p) BORG_PASS_FILE="$OPTARG" ;;
+        c) BORG_CHECK="yes" ;;
     esac
 done
 shift $((OPTIND - 1))
@@ -84,14 +86,14 @@ echo "🏳️  Borg flags: $BORG_FLAGS"
 
 for dest in "${BACKUP_DESTS[@]}"; do
     echo "➡️  Append to repo: ${dest}"
-    echo "borg check..."
-    sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg check --verify-data "$dest"
-    echo "borg create..."
+    echo "borg check... ($(date))"
+    [[ "$BORG_CHECK" == "yes" ]] && sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg check --verify-data "$dest"
+    echo "borg create... ($(date))"
     exclargs=$( (( ${#BACKUP_EXCL[@]} == 0 ))  || printf -- "-e %s " "${BACKUP_EXCL[@]}")
     sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg create "$dest"::"{now}" "${BACKUP_SRCS[@]}" $exclargs $BORG_FLAGS
-    echo "borg prune..."
+    echo "borg prune... ($(date))"
     sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg prune --keep-weekly=4 --keep-monthly=3 "$dest"
-    echo "borg compact..."
+    echo "borg compact... ($(date))"
     sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg compact "$dest"
 done
 
