@@ -16,7 +16,7 @@ set -o errtrace   # inherit ERR trap by functions, command subs, subshells
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/CONFIG.sh"
-[[ -z "$ADD_SERVER_BACKUP_SOURCES" ]] && ADD_SERVER_BACKUP_SOURCES=""
+ADD_SERVER_BACKUP_SOURCES="${ADD_SERVER_BACKUP_SOURCES:-}"
 
 # create package list
 sudo dpkg --get-selections | sudo tee /root/pkglist.txt > /dev/null
