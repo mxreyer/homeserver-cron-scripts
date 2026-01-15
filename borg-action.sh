@@ -15,11 +15,13 @@ source "${SCRIPT_DIR}/CONFIG.sh"
 BORG_MOUNTPOINT="" #"$BACKUP_LOC/tmp-borg-mounts/${dirname}"
 BORG_ACTION=""
 BASE_DIR="$PWD"
-while getopts "m:a:d:" opt; do
+BORG_REPOS=""
+while getopts "m:a:d:r:" opt; do
   case "$opt" in
     a) BORG_ACTION="$OPTARG" ;;
     m) BORG_MOUNTPOINT="$OPTARG" ;;
     d) BASE_DIR="$OPTARG" ;;
+    r) BORG_REPOS="$OPTARG" ;;
   esac
 done
 
@@ -65,14 +67,15 @@ fi
 
 # === script logic === #
 
-#for dir in beszel healthchecks immich mealie ollama paperless searxng stirling server; do
-for dir in server; do
+[[ -z "$BORG_REPOS" ]] && BORG_REPOS="beszel healthchecks immich mealie ollama paperless searxng stirling server"
+for dir in $BORG_REPOS; do
 
   echo "------------------"
   echo $dir
   echo "------------------"
 
   dirpath="${BASE_DIR}/${dir}"
+  [[ -d $dirpath ]] || echo "directory ${dirpath} does not exist!"; exit 1
   dirname=$(basename "$dirpath")
 
   BORG_PASS_FILE=${SCRIPT_DIR}/.borg-pass-${dirname}
