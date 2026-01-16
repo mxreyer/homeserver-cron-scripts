@@ -14,7 +14,7 @@ source "${SCRIPT_DIR}/CONFIG.sh"
 # === Parse arguments == #
 BORG_MOUNTPOINT=""
 BORG_ACTION=""
-BASE_DIR="$PWD"
+BASE_DIR="$PWD" # note: this can also be a remote dir, like user@server:/mnt/backup/remote-server
 BORG_REPOS=""
 while getopts "m:a:d:r:" opt; do
   case "$opt" in
