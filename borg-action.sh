@@ -3,6 +3,8 @@
 # Script Name: borg-action.sh
 # Description: mount, unmount, initialize, list, or extract borg repos for all
 #              my docker containers.
+#
+# Preparation: Initialize password files .borg-pass-XXX (chmod 600)
 # ==============================================================================
 
 set -euo pipefail # exit on error, undef vars, or failed pipeline
@@ -33,7 +35,7 @@ on_exit() {
 trap on_exit EXIT
 
 on_error() {
-  echo "❌ Mounting borg repos failed."
+  echo "❌ Performing borg action \"${BORG_ACTION}\" failed."
   exit 1
 }
 trap on_error ERR
@@ -72,7 +74,7 @@ fi
 
 # === script logic === #
 
-#[[ -z "$BORG_REPOS" ]] && BORG_REPOS="beszel healthchecks immich mealie ollama paperless searxng stirling server"
+#[[ -z "$BORG_REPOS" ]] && BORG_REPOS="beszel immich mealie ollama paperless searxng stirling server" healthchecks 
 for repo in $BORG_REPOS; do
 
   echo "------------------"
@@ -127,7 +129,6 @@ for repo in $BORG_REPOS; do
       echo "init..."
       [[ -d "$repopath" ]] || mkdir -p "$repopath"
       echo "repopath"
-      ls "$repopath"
       BORG_PASSPHRASE="$BORG_PASSPHRASE" borg init --encryption=repokey "$repopath"
       borg key export "$repopath"
       ;;
