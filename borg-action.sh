@@ -15,7 +15,7 @@ source "${SCRIPT_DIR}/CONFIG.sh"
 BORG_MOUNTPOINT=""
 BORG_ACTION=""
 BASE_DIR="$PWD" # note: this can also be a remote dir, like user@server:/mnt/backup/remote-server
-BORG_REPOS=""
+BORG_REPOS=""   # one or more borg repos
 while getopts "m:a:d:r:" opt; do
   case "$opt" in
     a) BORG_ACTION="$OPTARG" ;;
@@ -49,6 +49,11 @@ if [[ -z "$BORG_ACTION" ]]; then
   exit 1
 fi
 
+if [[ -z "$BORG_REPOS" ]]; then
+  echo "❌ No BORG_REPOS specified via -r!"
+  exit 1
+fi
+
 confirm=""
 read -p "Execute BORG_ACTION: ${BORG_ACTION}? (yes/no): " confirm
 if [[ "$confirm" != "yes" ]]; then
@@ -67,7 +72,7 @@ fi
 
 # === script logic === #
 
-[[ -z "$BORG_REPOS" ]] && BORG_REPOS="beszel healthchecks immich mealie ollama paperless searxng stirling server"
+#[[ -z "$BORG_REPOS" ]] && BORG_REPOS="beszel healthchecks immich mealie ollama paperless searxng stirling server"
 for repo in $BORG_REPOS; do
 
   echo "------------------"
