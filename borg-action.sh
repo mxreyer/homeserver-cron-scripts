@@ -74,8 +74,7 @@ for repo in $BORG_REPOS; do
   echo $repo
   echo "------------------"
 
-  #dirpath="${BASE_DIR}/${repo}"
-  repopath="${BASE_DIR}/repo/borg"
+  repopath="${BASE_DIR}/${repo}/borg"
   echo "repopath: $repopath"
 
   BORG_PASS_FILE=${SCRIPT_DIR}/.borg-pass-${repo}
