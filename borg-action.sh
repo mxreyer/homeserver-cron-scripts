@@ -12,7 +12,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/CONFIG.sh"
 
 # === Parse arguments == #
-BORG_MOUNTPOINT="" #"$BACKUP_LOC/tmp-borg-mounts/${dirname}"
+BORG_MOUNTPOINT=""
 BORG_ACTION=""
 BASE_DIR="$PWD"
 BORG_REPOS=""
@@ -68,26 +68,23 @@ fi
 # === script logic === #
 
 [[ -z "$BORG_REPOS" ]] && BORG_REPOS="beszel healthchecks immich mealie ollama paperless searxng stirling server"
-for dir in $BORG_REPOS; do
+for repo in $BORG_REPOS; do
 
   echo "------------------"
-  echo $dir
+  echo $repo
   echo "------------------"
 
-  dirpath="${BASE_DIR}/${dir}"
-  [[ -d $dirpath ]] || echo "directory ${dirpath} does not exist!"; exit 1
-  dirname=$(basename "$dirpath")
+  #dirpath="${BASE_DIR}/${repo}"
+  repopath="${BASE_DIR}/repo/borg"
+  echo "repopath: $repopath"
 
-  BORG_PASS_FILE=${SCRIPT_DIR}/.borg-pass-${dirname}
+  BORG_PASS_FILE=${SCRIPT_DIR}/.borg-pass-${repo}
   read -r BORG_PASSPHRASE < "$BORG_PASS_FILE"
 
-  repo="${dirpath}/borg"
-  echo "repo: $repo"
-
   if [[ $BORG_ACTION != "init" ]]; then
-    latest=$(sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg list --short --last 1 "$repo")
+    latest=$(sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg list --short --last 1 "$repopath")
     if [[ -z "$latest" ]]; then
-      echo "No archives found in $repo"
+      echo "No archives found in $repopath"
       exit 1
     fi
   fi
@@ -106,9 +103,9 @@ for dir in $BORG_REPOS; do
     "mount")
       echo "mount..."
       [[ -d "$BORG_MOUNTPOINT" ]] || mkdir -p "$BORG_MOUNTPOINT"
-      echo "archive: " "$repo"::"$latest"
+      echo "archive: " "$repopath"::"$latest"
       echo "mountpoint: ${BORG_MOUNTPOINT}"
-      sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg mount "$repo"::"$latest" ${BORG_MOUNTPOINT}
+      sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg mount "$repopath"::"$latest" ${BORG_MOUNTPOINT}
       ;;
 
     "unmount"|"umount") 
@@ -118,30 +115,30 @@ for dir in $BORG_REPOS; do
 
     "list") 
       echo "list..."
-      sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg list "$repo"::"$latest" --format="{mode} {user} {group} {path}{NL}"
-      #sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg list --last 1 --format "{archive} {time}\n" "$repo"
+      sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg list "$repopath"::"$latest" --format="{mode} {user} {group} {path}{NL}"
+      #sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg list --last 1 --format "{archive} {time}\n" "$repopath"
       ;;
 
     "init") 
       echo "init..."
-      [[ -d "$repo" ]] || mkdir -p "$repo"
-      echo "repo"
-      ls "$repo"
-      BORG_PASSPHRASE="$BORG_PASSPHRASE" borg init --encryption=repokey "$repo"
-      borg key export "$repo"
+      [[ -d "$repopath" ]] || mkdir -p "$repopath"
+      echo "repopath"
+      ls "$repopath"
+      BORG_PASSPHRASE="$BORG_PASSPHRASE" borg init --encryption=repokey "$repopath"
+      borg key export "$repopath"
       ;;
 
     "extract") 
       echo "extract..."
       (cd /; sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg extract \
-        "$repo"::"$latest")
+        "$repopath"::"$latest")
       ;;
 
     "extract-exclude-sidecars") 
       echo "extract (without tailscale/caddy sidecar volumes)..."
       (cd /; sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg extract \
         --exclude='*tailscale*' --exclude='*caddy*' \
-        "$repo"::"$latest")
+        "$repopath"::"$latest")
       ;; 
 
     *) 
