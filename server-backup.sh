@@ -31,8 +31,8 @@ HEALTHCHECK_URL="$HCHK_SERVER_BACKUP"
 source "${SCRIPT_DIR}/ping.sh"
 
 on_error() {
-    echo "❌ Backup failed."
-    ping_fail || exit 1
+  echo "❌ Backup failed."
+  ping_fail || exit 1
 }
 trap on_error ERR
 

@@ -22,13 +22,13 @@ BACKUP_EXCL=()
 BORG_PASS_FILE=""
 BORG_CHECK=""
 while getopts "s:d:e:p:c" opt; do
-    case "$opt" in
-	s) BACKUP_SRCS+=("$OPTARG") ;;
-	d) BACKUP_DESTS+=("$OPTARG") ;;
-	e) BACKUP_EXCL+=("$OPTARG") ;;
-        p) BORG_PASS_FILE="$OPTARG" ;;
-        c) BORG_CHECK="yes" ;;
-    esac
+  case "$opt" in
+    s) BACKUP_SRCS+=("$OPTARG") ;;
+    d) BACKUP_DESTS+=("$OPTARG") ;;
+    e) BACKUP_EXCL+=("$OPTARG") ;;
+    p) BORG_PASS_FILE="$OPTARG" ;;
+    c) BORG_CHECK="yes" ;;
+  esac
 done
 shift $((OPTIND - 1))
 #REMAINING_ARGS="$@";
@@ -36,13 +36,13 @@ BORG_FLAGS="$@"
 
 # === Error handling ==
 on_exit() {
-    unset BORG_PASSPHRASE # for security, unset passphrase
+  unset BORG_PASSPHRASE # for security, unset passphrase
 }
 trap on_exit EXIT
 
 on_error() {
-    echo "❌ Appending to borg repo failed."
-    exit 1
+  echo "❌ Appending to borg repo failed."
+  exit 1
 }
 trap on_error ERR
 
@@ -52,29 +52,29 @@ trap on_error ERR
 #    exit 1
 #fi
 if [[ -z "${BACKUP_SRCS[@]}" ]] || [[ -z "${BACKUP_DESTS[@]}" ]]; then
-    echo "❌ Specify at least one source and destination for the backup!" >&2  
-    exit 1
+  echo "❌ Specify at least one source and destination for the backup!" >&2  
+  exit 1
 fi
 if [[ -z $BORG_PASS_FILE ]]; then
-    echo "❌ Must specify passfile!" >&2  
-    exit 1
+  echo "❌ Must specify passfile!" >&2  
+  exit 1
 fi
 if [[ ! -f $BORG_PASS_FILE ]]; then
-    echo "❌ Couldn't find passfile: '${BORG_PASS_FILE}'" >&2  
-    exit 1
+  echo "❌ Couldn't find passfile: '${BORG_PASS_FILE}'" >&2  
+  exit 1
 fi
 read -r BORG_PASSPHRASE < "$BORG_PASS_FILE"
 for src in "${BACKUP_SRCS[@]}"; do
-    if [[ ! -e "$src" ]]; then
-        echo "❌ Source '$src' is not a valid file or directory." >&2
-        exit 1
-    fi
+  if [[ ! -e "$src" ]]; then
+    echo "❌ Source '$src' is not a valid file or directory." >&2
+    exit 1
+  fi
 done
 for dest in "${BACKUP_DESTS[@]}"; do
-    if ! $(sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg info "$dest" > /dev/null); then
-        echo "❌ '$dest' is not a valid or accessible Borg repository." >&2
-        exit 1
-    fi 
+  if ! $(sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg info "$dest" > /dev/null); then
+    echo "❌ '$dest' is not a valid or accessible Borg repository." >&2
+    exit 1
+  fi 
 done
 
 # === Script logic ===
@@ -85,20 +85,20 @@ echo "🗄️  Borg repos: ${BACKUP_DESTS[@]}"
 echo "🏳️  Borg flags: $BORG_FLAGS"
 
 for dest in "${BACKUP_DESTS[@]}"; do
-    echo "➡️  Append to repo: ${dest}"
-    if [[ "$BORG_CHECK" == "yes" ]]; then
-      echo "borg check... ($(date))"
-      sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg check --verify-data "$dest"
-    else
-      echo "skip borg check."
-    fi
-    echo "borg create... ($(date))"
-    exclargs=$( (( ${#BACKUP_EXCL[@]} == 0 ))  || printf -- "-e %s " "${BACKUP_EXCL[@]}")
+  echo "➡️  Append to repo: ${dest}"
+  if [[ "$BORG_CHECK" == "yes" ]]; then
+    echo "borg check... ($(date))"
+    sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg check --verify-data "$dest"
+  else
+    echo "skip borg check."
+  fi
+  echo "borg create... ($(date))"
+  exclargs=$( (( ${#BACKUP_EXCL[@]} == 0 ))  || printf -- "-e %s " "${BACKUP_EXCL[@]}")
     sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg create "$dest"::"{now}" "${BACKUP_SRCS[@]}" $exclargs $BORG_FLAGS
     echo "borg prune... ($(date))"
     sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg prune --keep-weekly=4 --keep-monthly=3 "$dest"
     echo "borg compact... ($(date))"
     sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg compact "$dest"
-done
+  done
 
-echo "✅ Successfully appended backups to borg repos."
+  echo "✅ Successfully appended backups to borg repos."

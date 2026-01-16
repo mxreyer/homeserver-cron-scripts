@@ -25,41 +25,41 @@ BORG_PASS_FILE=""
 BORG_FLAGS=""
 PREP_SCRIPT=""
 while getopts "u:s:d:e:p:f:y:C:c:i:" opt; do
-    case "$opt" in
-        u) HEALTHCHECK_URL="$OPTARG" ;;
-        s) BACKUP_SRCS+=("$OPTARG") ;;
-	d) BACKUP_DESTS+=("$OPTARG") ;;
-	e) BACKUP_EXCL+=("$OPTARG") ;;
-        p) BORG_PASS_FILE="$OPTARG" ;;
-        f) BORG_FLAGS="$OPTARG" ;;
-        y) COMPOSE_FILE="$OPTARG" ;;
-	C) STOP_CONTAINERS_PRE+=("$OPTARG") ;;
-	c) STOP_CONTAINERS+=("$OPTARG") ;;
-	i) PREP_SCRIPT=("$OPTARG") ;;
-    esac
+  case "$opt" in
+    u) HEALTHCHECK_URL="$OPTARG" ;;
+    s) BACKUP_SRCS+=("$OPTARG") ;;
+    d) BACKUP_DESTS+=("$OPTARG") ;;
+    e) BACKUP_EXCL+=("$OPTARG") ;;
+    p) BORG_PASS_FILE="$OPTARG" ;;
+    f) BORG_FLAGS="$OPTARG" ;;
+    y) COMPOSE_FILE="$OPTARG" ;;
+    C) STOP_CONTAINERS_PRE+=("$OPTARG") ;;
+    c) STOP_CONTAINERS+=("$OPTARG") ;;
+    i) PREP_SCRIPT=("$OPTARG") ;;
+  esac
 done
 shift $((OPTIND - 1))
 REMAINING_ARGS="$@";
 
 # === Check user input === #
 if [[ ! -z $REMAINING_ARGS ]]; then
-    echo "❌ Extra arguments: '${REMAINING_ARGS}'" >&2  
-    exit 1
+  echo "❌ Extra arguments: '${REMAINING_ARGS}'" >&2  
+  exit 1
 fi
 if [[ ! -z "$COMPOSE_FILE" ]] &&  [[ ! -f $COMPOSE_FILE ]]; then
-    echo "❌ Couldn't find compose file: '${COMPOSE_FILE}'" >&2  
-    exit 1
+  echo "❌ Couldn't find compose file: '${COMPOSE_FILE}'" >&2  
+  exit 1
 fi
 if [[ ! -z "$PREP_SCRIPT" ]] &&  [[ ! -f $PREP_SCRIPT ]]; then
-    echo "❌ Couldn't find prep script: '${PREP_SCRIPT}'" >&2  
-    exit 1
+  echo "❌ Couldn't find prep script: '${PREP_SCRIPT}'" >&2  
+  exit 1
 fi
 
 # === Stop and Start docker containers === #
 stop_docker_pre() {
   if [[ ! -z "$COMPOSE_FILE" ]] && [[ ! -z "${STOP_CONTAINERS_PRE[@]}" ]]; then
     echo "🐳 Stopping containers (pre prep script)..."
-      docker compose -f "$COMPOSE_FILE" stop "${STOP_CONTAINERS_PRE[@]}"
+    docker compose -f "$COMPOSE_FILE" stop "${STOP_CONTAINERS_PRE[@]}"
   fi
 }
 stop_docker() {
@@ -77,14 +77,14 @@ start_docker() {
 
 # === Traps, error handling === #
 on_exit() {
-    rm -rf "$tmpdir"
-    start_docker
+  rm -rf "$tmpdir"
+  start_docker
 }
 trap on_exit EXIT
 
 on_error() {
-    echo "❌ Backup failed. 🐳 Restart docker containers, 🛜 ping failure."
-    ping_fail || exit 1
+  echo "❌ Backup failed. 🐳 Restart docker containers, 🛜 ping failure."
+  ping_fail || exit 1
 }
 trap on_error ERR
 

@@ -20,14 +20,14 @@ source "${SCRIPT_DIR}/ping.sh"
 
 # === Traps, error handling === #
 on_exit() {
-    start_docker || exit 1
-    rm "$tmp_docker_file"
+  start_docker || exit 1
+  rm "$tmp_docker_file"
 }
 trap on_exit EXIT
 
 on_error() {
-    echo "❌ Update failed."
-    ping_fail || exit 1
+  echo "❌ Update failed."
+  ping_fail || exit 1
 }
 trap on_error ERR
 

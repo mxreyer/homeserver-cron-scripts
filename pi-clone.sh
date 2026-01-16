@@ -29,15 +29,15 @@ source "${SCRIPT_DIR}/ping.sh"
 
 # === Traps, error handling === #
 on_exit() {
-    start_docker || exit 1
-    (mountpoint -q "$tmp_mnt") && sudo umount "$tmp_mnt"
-    rm -rf "$tmp_docker_file" "$tmp_mnt"
+  start_docker || exit 1
+  (mountpoint -q "$tmp_mnt") && sudo umount "$tmp_mnt"
+  rm -rf "$tmp_docker_file" "$tmp_mnt"
 }
 trap on_exit EXIT
 
 on_error() {
-    echo "❌ Clone failed."
-    ping_fail || exit 1
+  echo "❌ Clone failed."
+  ping_fail || exit 1
 }
 trap on_error ERR
 
@@ -50,10 +50,10 @@ stop_docker || exit 1
 echo "🐑 🐑 Cloning Pi drive to ${BACKUP_DRIVE} with ptuuid ${PTUUID_EXPECTED} 💾 💾"
 
 if sudo /usr/sbin/blkid "$BACKUP_DRIVE" | grep -q ".*${PTUUID_EXPECTED}.*"; then
-    echo "✅ Backup drive UUID matches. Proceeding..."
+  echo "✅ Backup drive UUID matches. Proceeding..."
 else
-    echo "❌ UUID mismatch. Aborting!"
-    exit 1
+  echo "❌ UUID mismatch. Aborting!"
+  exit 1
 fi
 
 shopt -s dotglob nullglob  # include dotfiles; handle empty dirs safely
