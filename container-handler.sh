@@ -36,7 +36,7 @@ stop_docker() {
   echo "Stopping ☁️  Nextcloud containers..."
   responsefile=$(mktemp)
   docker exec --env DAILY_BACKUP=0 --env STOP_CONTAINERS=1 --env START_CONTAINERS=0 \
-	  nextcloud-aio-mastercontainer /daily-backup.sh 2>&1 | tee "$responsefile"
+    nextcloud-aio-mastercontainer /daily-backup.sh 2>&1 | tee "$responsefile"
   if $(grep -i "error" -q "$responsefile"); then
     echo "Error stopping nextcloud containers."
     rm "$responsefile"
@@ -48,11 +48,11 @@ stop_docker() {
     echo "Stopping 🎼 compose project $project in $dir"
     (cd "$dir" && docker compose down)
     #if [[ "$1" == "--no_ts_cdy" ]]; then
-    #    # exclude tailscale and caddy 
-    #    (cd "$dir" && docker compose ps -q | grep -v -E "$(docker compose ps -q tailscale caddy | paste -sd'|' -)" | xargs -r docker stop)
+    #  # exclude tailscale and caddy 
+    #  (cd "$dir" && docker compose ps -q | grep -v -E "$(docker compose ps -q tailscale caddy | paste -sd'|' -)" | xargs -r docker stop)
     #else
-    #    # include tailscale and caddy 
-    #	(cd "$dir" && docker compose down)
+    #  # include tailscale and caddy 
+    #  (cd "$dir" && docker compose down)
     #fi
   done < "$tmp_docker_file"
 }
@@ -74,7 +74,7 @@ start_docker() {
   echo "Starting ☁️  Nextcloud containers..."
   responsefile=$(mktemp)
   docker exec --env DAILY_BACKUP=0 --env STOP_CONTAINERS=0 --env START_CONTAINERS=1 \
-	  nextcloud-aio-mastercontainer /daily-backup.sh 2>&1 | tee "$responsefile"
+    nextcloud-aio-mastercontainer /daily-backup.sh 2>&1 | tee "$responsefile"
   if $(grep -i "error" -q "$responsefile"); then
     echo "Error starting nextcloud containers."
     rm "$responsefile"

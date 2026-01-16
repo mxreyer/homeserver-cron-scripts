@@ -30,8 +30,8 @@ PAPERLESS_BACKUP_FOLDER="${DOCKER_BINDS_DIR}/paperless/export" # where paperless
 echo "💾 Requesting paperless backup..."
 if ! (docker compose -f ${DOCKER_COMPOSE_DIR}/paperless/compose.yaml exec -T webserver\
       document_exporter --delete --no-archive --no-thumbnail --no-progress-bar ../export); then
-    echo "❌ Failed to create backup." >&2
-    exit 1
+  echo "❌ Failed to create backup." >&2
+  exit 1
 fi
 
 echo "✅ Backup created successfully."

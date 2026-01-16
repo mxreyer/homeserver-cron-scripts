@@ -19,8 +19,8 @@ echo "----- 🛜 Pinging healthcheck at $(date) ⏰ -----";
 
 # === Ping healthcheck ===
 if ! curl -fsS --max-time 10 "$HEALTHCHECK_URL" >/dev/null; then
-    echo "⚠️ Healthcheck ping failed." >&2
-    exit 1
+  echo "⚠️ Healthcheck ping failed." >&2
+  exit 1
 fi
 
 echo "✅ Healthcheck ping successful!"

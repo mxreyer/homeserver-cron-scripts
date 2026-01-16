@@ -16,8 +16,8 @@ HEALTHCHECK_URL="$HCHK_WEBSERVICE_PING"
 source "${SCRIPT_DIR}/ping.sh"
 
 on_error() {
-    echo "❌ webservice health check failed. 🛜 ping failure."
-    ping_fail || exit 1
+  echo "❌ webservice health check failed. 🛜 ping failure."
+  ping_fail || exit 1
 }
 trap on_error ERR
 

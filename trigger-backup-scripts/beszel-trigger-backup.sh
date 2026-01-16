@@ -32,10 +32,10 @@ trap 'rm -rf "$tmpfile"' EXIT # delete tmp files
 
 # === Step 0: Ensure tmp backup folder is empty ===
 if [ -n "$(find ${BESZEL_BACKUP_FOLDER} -mindepth 1 -print -quit)" ]; then
-    echo "❌ Tmp backup location is not empty."
-    exit 1
+  echo "❌ Tmp backup location is not empty."
+  exit 1
 else
-    echo "✅ Backup location is empty."
+  echo "✅ Backup location is empty."
 fi
 
 # === Step 1: Trigger beszel backup ===
@@ -46,28 +46,28 @@ status_code=$(curl -s -w "%{http_code}" -o "$tmpfile" \
   -H "Authorization: Bearer $BESZEL_AUTH_TOKEN")
 
 if [[ "$status_code" -eq 204 ]]; then
-    echo "✅ Backup created successfully."
+  echo "✅ Backup created successfully."
 else
-    echo "❌ Failed to create backup."
-    echo "➡️  Status code: $status_code"
-    message=$(jq -r '.message // ""' "$tmpfile")
-    echo "➡️  Message: $message"
-    exit 1
+  echo "❌ Failed to create backup."
+  echo "➡️  Status code: $status_code"
+  message=$(jq -r '.message // ""' "$tmpfile")
+  echo "➡️  Message: $message"
+  exit 1
 fi
 
 # === Step 2: Extract generated backup ===
 zipfile=(${BESZEL_BACKUP_FOLDER}/*.zip)
 if [ ${#zipfile[@]} -eq 0 ]; then
-    echo "❌ Not exactly one backup .zip file found in $BESZEL_BACKUP_FOLDER"
-    exit 1
+  echo "❌ Not exactly one backup .zip file found in $BESZEL_BACKUP_FOLDER"
+  exit 1
 fi
 zipfile="${zipfile[0]}"
 echo "✅ Found backup .zip file: ${zipfile}"
 
 attrsfile="${zipfile}.attrs"
 if [ ! -f "$attrsfile" ]; then
-    echo "❌ Missing .zip.attrs file ${attrsfile}"
-    exit 1
+  echo "❌ Missing .zip.attrs file ${attrsfile}"
+  exit 1
 fi
 echo "✅ Found .zip.attrs file: ${attrsfile}"
 
@@ -86,11 +86,11 @@ status_code=$(curl -s -w "%{http_code}" -o "$tmpfile" \
   -H "Authorization: Bearer $BESZEL_AUTH_TOKEN")
 
 if [[ "$status_code" -eq 204 ]]; then
-    echo "✅ Tmp backup file deleted successfully."
+  echo "✅ Tmp backup file deleted successfully."
 else
-    echo "❌ Failed to delete tmp backup file."
-    echo "➡️ Status code: $status_code"
-    message=$(jq -r '.message // ""' "$tmpfile")
-    echo "➡️ Message: $message"
-    exit 1
+  echo "❌ Failed to delete tmp backup file."
+  echo "➡️ Status code: $status_code"
+  message=$(jq -r '.message // ""' "$tmpfile")
+  echo "➡️ Message: $message"
+  exit 1
 fi
