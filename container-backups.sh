@@ -115,25 +115,25 @@ trap on_exit EXIT
   2>&1 \
   | tee ${SCRIPT_DIR}/logs/beszel.log
 
-# healthchecks
-# On top of backing up bind mounts and volumes, create full docker-agnostic
-# backup using database dump, see healthchecks-trigger-backup.sh
-"$BACKUP_SCRIPT" \
-  -p ${SCRIPT_DIR}/.borg-pass-healthchecks \
-  -u "$HCHK_HEALTHCHECKS" \
-  -i "${SCRIPT_DIR}/trigger-backup-scripts/healthchecks-trigger-backup.sh" \
-  -y ${DOCKER_COMPOSE_DIR}/healthchecks/compose.yaml \
-  -C web \
-  -s ${DOCKER_BINDS_DIR}/healthchecks \
-  -s ${DOCKER_VOL_LOC}/healthchecks_caddy_certs \
-  -s ${DOCKER_VOL_LOC}/healthchecks_caddy_config \
-  -s ${DOCKER_VOL_LOC}/healthchecks_caddy_data \
-  -s ${DOCKER_VOL_LOC}/healthchecks_db_data \
-  -s ${DOCKER_VOL_LOC}/healthchecks_tailscale_sock \
-  -d "${BACKUP_LOC}/healthchecks/borg" \
-  -d "${BACKUP_SSH}/healthchecks/borg" \
-  2>&1 \
-  | tee ${SCRIPT_DIR}/logs/healthchecks.log
+## healthchecks
+## On top of backing up bind mounts and volumes, create full docker-agnostic
+## backup using database dump, see healthchecks-trigger-backup.sh
+#"$BACKUP_SCRIPT" \
+#  -p ${SCRIPT_DIR}/.borg-pass-healthchecks \
+#  -u "$HCHK_HEALTHCHECKS" \
+#  -i "${SCRIPT_DIR}/trigger-backup-scripts/healthchecks-trigger-backup.sh" \
+#  -y ${DOCKER_COMPOSE_DIR}/healthchecks/compose.yaml \
+#  -C web \
+#  -s ${DOCKER_BINDS_DIR}/healthchecks \
+#  -s ${DOCKER_VOL_LOC}/healthchecks_caddy_certs \
+#  -s ${DOCKER_VOL_LOC}/healthchecks_caddy_config \
+#  -s ${DOCKER_VOL_LOC}/healthchecks_caddy_data \
+#  -s ${DOCKER_VOL_LOC}/healthchecks_db_data \
+#  -s ${DOCKER_VOL_LOC}/healthchecks_tailscale_sock \
+#  -d "${BACKUP_LOC}/healthchecks/borg" \
+#  -d "${BACKUP_SSH}/healthchecks/borg" \
+#  2>&1 \
+#  | tee ${SCRIPT_DIR}/logs/healthchecks.log
 
 # mealie
 # On top of backing up bind mounts and volumes, create full docker-agnostic
