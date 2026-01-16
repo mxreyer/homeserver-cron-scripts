@@ -86,8 +86,12 @@ echo "🏳️  Borg flags: $BORG_FLAGS"
 
 for dest in "${BACKUP_DESTS[@]}"; do
     echo "➡️  Append to repo: ${dest}"
-    echo "borg check... ($(date))"
-    [[ "$BORG_CHECK" == "yes" ]] && sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg check --verify-data "$dest"
+    if [[ "$BORG_CHECK" == "yes" ]]; then
+      echo "borg check... ($(date))"
+      sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg check --verify-data "$dest"
+    else
+      echo "skip borg check."
+    fi
     echo "borg create... ($(date))"
     exclargs=$( (( ${#BACKUP_EXCL[@]} == 0 ))  || printf -- "-e %s " "${BACKUP_EXCL[@]}")
     sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg create "$dest"::"{now}" "${BACKUP_SRCS[@]}" $exclargs $BORG_FLAGS
