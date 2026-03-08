@@ -190,7 +190,19 @@ trap on_exit EXIT
   -d "${BACKUP_SSH}/stirling/borg" \
   2>&1 \
   | tee ${SCRIPT_DIR}/logs/stirling.log
-#
+
+# firefly
+"$BACKUP_SCRIPT" \
+  -p ${SCRIPT_DIR}/.borg-pass-firefly \
+  -u "$HCHK_FIREFLY" \
+  -y ${DOCKER_COMPOSE_DIR}/firefly/compose.yaml \
+  -s ${DOCKER_VOL_LOC}/firefly_iii_upload \
+  -s ${DOCKER_VOL_LOC}/firefly_iii_db \
+  -d "${BACKUP_LOC}/firefly/borg" \
+  -d "${BACKUP_SSH}/firefly/borg" \
+  2>&1 \
+  | tee ${SCRIPT_DIR}/logs/firefly.log
+
 # template
 #"$BACKUP_SCRIPT" \
 #  -p ${SCRIPT_DIR}/.borg-pass- \
