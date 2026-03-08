@@ -89,7 +89,7 @@ for repo in $BORG_REPOS; do
   BORG_PASS_FILE=${SCRIPT_DIR}/.borg-pass-${repo}
   read -r BORG_PASSPHRASE < "$BORG_PASS_FILE"
 
-  if [[ $BORG_ARCHIVE == latest ]] && [[ $BORG_ACTION != "init" ]]; then
+  if [[ $BORG_ARCHIVE == latest ]] && [[ ! $BORG_ACTION =~ (init|list|umount|unmount) ]]; then
     echo "ℹ️  No archive name provided. 🔎 Find latest archive..."
     BORG_ARCHIVE=$(sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg list --short --last 1 "$repopath")
     if [[ -z "$BORG_ARCHIVE" ]]; then
@@ -125,7 +125,7 @@ for repo in $BORG_REPOS; do
 
     "list-archive") 
       echo "list archive..."
-      #sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg list "$repopath"::"$BORG_ARCHIVE" --format="{mode} {user} {group} {path}{NL}"
+      sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg list "$repopath"::"$BORG_ARCHIVE" --format="{mode} {user} {group} {path}{NL}"
       ;;
 
     "list") 
