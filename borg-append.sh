@@ -96,7 +96,7 @@ for dest in "${BACKUP_DESTS[@]}"; do
   exclargs=$( (( ${#BACKUP_EXCL[@]} == 0 ))  || printf -- "-e %s " "${BACKUP_EXCL[@]}")
     sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg create "$dest"::"{now}" "${BACKUP_SRCS[@]}" $exclargs $BORG_FLAGS
     echo "borg prune... ($(date))"
-    sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg prune --keep-weekly=4 --keep-monthly=3 "$dest"
+    sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg prune --keep-daily=7 --keep-weekly=4 --keep-monthly=12 "$dest"
     echo "borg compact... ($(date))"
     sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg compact "$dest"
   done
