@@ -16,14 +16,16 @@ source "${SCRIPT_DIR}/CONFIG.sh"
 # === Parse arguments == #
 BORG_MOUNTPOINT=""
 BORG_ACTION=""
-BASE_DIR="$PWD" # note: this can also be a remote dir, like user@server:/mnt/backup/remote-server
-BORG_REPOS=""   # one or more borg repos
-while getopts "m:a:d:r:" opt; do
+BASE_DIR="$PWD"       # note: this can also be a remote dir, like user@server:/mnt/backup/remote-server
+BORG_REPOS=""         # one or more borg repos.
+BORG_ARCHIVE="latest" # the archive within the repo. defaults to latest.
+while getopts "m:a:d:r:x:" opt; do
   case "$opt" in
     a) BORG_ACTION="$OPTARG" ;;
     m) BORG_MOUNTPOINT="$OPTARG" ;;
     d) BASE_DIR="$OPTARG" ;;
     r) BORG_REPOS="$OPTARG" ;;
+    x) BORG_ARCHIVE="$OPTARG" ;;
   esac
 done
 
@@ -59,15 +61,15 @@ fi
 confirm=""
 read -p "Execute BORG_ACTION: ${BORG_ACTION}? (yes/no): " confirm
 if [[ "$confirm" != "yes" ]]; then
-  echo "Operation cancelled."
+  echo "🛑 Operation cancelled."
   exit 1
 fi
 
 confirm=""
 if [[ "$BORG_ACTION" = extract* ]]; then
-  read -p "Really perform BORG_ACTION: ${BORG_ACTION}? This may delete data! (yes/no): " confirm
+  read -p "🚨 Really perform BORG_ACTION: ${BORG_ACTION}? This may delete data! (yes/no): " confirm
   if [[ "$confirm" != "yes" ]]; then
-    echo "Operation cancelled."
+    echo "🛑 Operation cancelled."
     exit 1
   fi
 fi
@@ -82,17 +84,19 @@ for repo in $BORG_REPOS; do
   echo "------------------"
 
   repopath="${BASE_DIR}/${repo}/borg"
-  echo "repopath: $repopath"
+  echo "📁 repopath: $repopath"
 
   BORG_PASS_FILE=${SCRIPT_DIR}/.borg-pass-${repo}
   read -r BORG_PASSPHRASE < "$BORG_PASS_FILE"
 
-  if [[ $BORG_ACTION != "init" ]]; then
-    latest=$(sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg list --short --last 1 "$repopath")
-    if [[ -z "$latest" ]]; then
-      echo "No archives found in $repopath"
+  if [[ $BORG_ARCHIVE == latest ]] && [[ $BORG_ACTION != "init" ]]; then
+    echo "ℹ️  No archive name provided. 🔎 Find latest archive..."
+    BORG_ARCHIVE=$(sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg list --short --last 1 "$repopath")
+    if [[ -z "$BORG_ARCHIVE" ]]; then
+      echo "❌ No archives found in $repopath"
       exit 1
     fi
+    echo "👍 ... found latest=$BORG_ARCHIVE"
   fi
 
   if [[ "$BORG_ACTION" == *mount ]] && [[ -z "$BORG_MOUNTPOINT" ]]; then
@@ -109,9 +113,9 @@ for repo in $BORG_REPOS; do
     "mount")
       echo "mount..."
       [[ -d "$BORG_MOUNTPOINT" ]] || mkdir -p "$BORG_MOUNTPOINT"
-      echo "archive: " "$repopath"::"$latest"
+      echo "archive: " "$repopath"::"$BORG_ARCHIVE"
       echo "mountpoint: ${BORG_MOUNTPOINT}"
-      sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg mount "$repopath"::"$latest" ${BORG_MOUNTPOINT}
+      sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg mount "$repopath"::"$BORG_ARCHIVE" ${BORG_MOUNTPOINT}
       ;;
 
     "unmount"|"umount") 
@@ -119,10 +123,14 @@ for repo in $BORG_REPOS; do
       sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg umount ${BORG_MOUNTPOINT}
       ;;
 
+    "list-archive") 
+      echo "list archive..."
+      #sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg list "$repopath"::"$BORG_ARCHIVE" --format="{mode} {user} {group} {path}{NL}"
+      ;;
+
     "list") 
       echo "list..."
-      sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg list "$repopath"::"$latest" --format="{mode} {user} {group} {path}{NL}"
-      #sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg list --last 1 --format "{archive} {time}\n" "$repopath"
+      sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg list --format "{archive} {time} {NL}" "$repopath"
       ;;
 
     "init") 
@@ -136,14 +144,14 @@ for repo in $BORG_REPOS; do
     "extract") 
       echo "extract..."
       (cd /; sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg extract \
-        "$repopath"::"$latest")
+        "$repopath"::"$BORG_ARCHIVE")
       ;;
 
     "extract-exclude-sidecars") 
       echo "extract (without tailscale/caddy sidecar volumes)..."
       (cd /; sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg extract \
         --exclude='*tailscale*' --exclude='*caddy*' \
-        "$repopath"::"$latest")
+        "$repopath"::"$BORG_ARCHIVE")
       ;; 
 
     *) 
