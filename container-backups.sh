@@ -196,8 +196,8 @@ trap on_exit EXIT
   -p ${SCRIPT_DIR}/.borg-pass-firefly \
   -u "$HCHK_FIREFLY" \
   -y ${DOCKER_COMPOSE_DIR}/firefly/compose.yaml \
-  -s ${DOCKER_VOL_LOC}/firefly_iii_upload \
-  -s ${DOCKER_VOL_LOC}/firefly_iii_db \
+  -s ${DOCKER_VOL_LOC}/firefly_firefly_iii_upload \
+  -s ${DOCKER_VOL_LOC}/firefly_firefly_iii_db \
   -d "${BACKUP_LOC}/firefly/borg" \
   -d "${BACKUP_SSH}/firefly/borg" \
   2>&1 \
