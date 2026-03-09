@@ -14,7 +14,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/CONFIG.sh"
 
 # === Parse arguments == #
-BORG_MOUNTPOINT=""
+BORG_MOUNT_BASE="$PWD"
 BORG_ACTION=""
 BASE_DIR="$PWD"       # note: this can also be a remote dir, like user@server:/mnt/backup/remote-server
 BORG_REPOS=""         # one or more borg repos.
@@ -22,7 +22,7 @@ BORG_ARCHIVE="latest" # the archive within the repo. defaults to latest.
 while getopts "m:a:d:r:x:" opt; do
   case "$opt" in
     a) BORG_ACTION="$OPTARG" ;;
-    m) BORG_MOUNTPOINT="$OPTARG" ;;
+    m) BORG_MOUNT_BASE="$OPTARG" ;;
     d) BASE_DIR="$OPTARG" ;;
     r) BORG_REPOS="$OPTARG" ;;
     x) BORG_ARCHIVE="$OPTARG" ;;
@@ -99,20 +99,29 @@ for repo in $BORG_REPOS; do
     echo "👍 ... found latest=$BORG_ARCHIVE"
   fi
 
-  if [[ "$BORG_ACTION" == *mount ]] && [[ -z "$BORG_MOUNTPOINT" ]]; then
-    echo "❌ No BORG_MOUNTPOINT specified via -m!"
-    exit 1
-  fi
+  #if [[ "$BORG_ACTION" == *mount ]] && [[ -z "$BORG_MOUNT_BASE" ]]; then
+  #  echo "❌ No BORG_MOUNTPOINT specified via -m!"
+  #  exit 1
+  #fi
 
   if [[ "$BORG_ACTION" == extract* ]]; then
     [[ -d "$DOCKER_BINDS_DIR" ]] || mkdir "$DOCKER_BINDS_DIR"
+  fi
+  
+  if [[ "$BORG_ACTION" == *mount ]]; then
+    BORG_MOUNTPOINT="${BORG_MOUNT_BASE}/${repo}-backup-mount"
   fi
 
   case "$BORG_ACTION" in 
 
     "mount")
       echo "mount..."
-      [[ -d "$BORG_MOUNTPOINT" ]] || mkdir -p "$BORG_MOUNTPOINT"
+      #[[ -d "$BORG_MOUNTPOINT" ]] || mkdir -p "$BORG_MOUNTPOINT"
+      if [[ -d "$BORG_MOUNTPOINT" ]]; then
+        echo "mountpoint $BORG_MOUNTPOINT already exists. exit"
+      else
+        mkdir -p "$BORG_MOUNTPOINT"
+      fi
       echo "archive: " "$repopath"::"$BORG_ARCHIVE"
       echo "mountpoint: ${BORG_MOUNTPOINT}"
       sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg mount "$repopath"::"$BORG_ARCHIVE" ${BORG_MOUNTPOINT}
@@ -121,6 +130,7 @@ for repo in $BORG_REPOS; do
     "unmount"|"umount") 
       echo "unmount..."
       sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg umount ${BORG_MOUNTPOINT}
+      rmdir "$BORG_MOUNTPOINT"
       ;;
 
     "list-archive") 
@@ -135,8 +145,6 @@ for repo in $BORG_REPOS; do
 
     "init") 
       echo "init..."
-      [[ -d "$repopath" ]] || mkdir -p "$repopath"
-      echo "repopath"
       BORG_PASSPHRASE="$BORG_PASSPHRASE" borg init --encryption=repokey "$repopath"
       borg key export "$repopath"
       ;;
