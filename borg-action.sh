@@ -66,8 +66,17 @@ if [[ "$confirm" != "yes" ]]; then
 fi
 
 confirm=""
-if [[ "$BORG_ACTION" = extract* ]] || [[ "$BORG_ACTION" = delete ]] ; then
-  read -p "🚨 Really perform BORG_ACTION: ${BORG_ACTION}? This may/will delete data! (yes/no): " confirm
+if [[ "$BORG_ACTION" = extract* ]]; then
+  read -p "🚨 Really perform BORG_ACTION: ${BORG_ACTION}? This may overwrite/delete data! (yes/no): " confirm
+  if [[ "$confirm" != "yes" ]]; then
+    echo "🛑 Operation cancelled."
+    exit 1
+  fi
+fi
+
+confirm=""
+if [[ "$BORG_ACTION" = delete ]] ; then
+  read -p "🚨 Really perform BORG_ACTION: ${BORG_ACTION}? (yes/no): " confirm
   if [[ "$confirm" != "yes" ]]; then
     echo "🛑 Operation cancelled."
     exit 1
