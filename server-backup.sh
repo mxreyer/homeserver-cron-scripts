@@ -22,7 +22,14 @@ ADD_SERVER_BACKUP_SOURCES="${ADD_SERVER_BACKUP_SOURCES:-}"
 sudo dpkg --get-selections | sudo tee /root/pkglist.txt > /dev/null
 
 BACKUP_DESTS=("${BACKUP_LOC}/server/borg" "${BACKUP_SSH}/server/borg")
-BACKUP_SRCS=(/etc /home /root /usr/local /opt /var/lib /var/spool/cron/ /boot /mnt $ADD_SERVER_BACKUP_SOURCES)
+BACKUP_SRCS=(ubuntu-vg/ubuntu-lv:/etc ubuntu-vg/ubuntu-lv:/home ubuntu-vg/ubuntu-lv:/root ubuntu-vg/ubuntu-lv:/usr/local ubuntu-vg/ubuntu-lv:/opt ubuntu-vg/ubuntu-lv:/var/lib ubuntu-vg/ubuntu-lv:/var/spool/cron/ ubuntu-vg/ubuntu-lv:/boot /mnt $ADD_SERVER_BACKUP_SOURCES)
+# note that /mnt/photos is the only subdir of /mnt under ubuntu-vg/pictures.
+# Thus, we could do the following to separate /mnt/pictures from the rest and
+# enable snapshotting for this subdir. However, we don't really need
+# snapshotting, here.
+# BACKUP_SRCS+=(ubuntu-vg/pictures:/mnt/photos)
+# mapfile -t -O "${#BACKUP_SRCS[@]}" BACKUP_SRCS < <(find /mnt -mindepth 1 -maxdepth 1 ! -name 'photos')
+# BACKUP_SRCS+=($ADD_SERVER_BACKUP_SOURCES)
 BACKUP_EXCL=(/var/lib/docker /var/lib/containers /var/cache /var/tmp /mnt/backup)
 BORG_FLAGS="--verbose --stats --show-rc"
 BORG_PASS_FILE="${SCRIPT_DIR}/.borg-pass-server"
