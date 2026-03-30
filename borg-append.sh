@@ -55,11 +55,12 @@ declare -A LVM_SNAPSHOTS  # vg/lv -> mount point
 # === Error handling ===
 cleanup() {
   unset BORG_PASSPHRASE
-  # Copy keys to a plain array first to avoid unbound variable errors
-  # on empty associative arrays under set -u.
-  lvm_keys=("${!LVM_SNAPSHOTS[@]:-}")
-  for lv_key in "${lvm_keys[@]:-}"; do
-    [[ -z "$lv_key" ]] && continue
+  # LVM_SNAPSHOTS is always declared (declare -A at top), so
+  # ${#LVM_SNAPSHOTS[@]} is safe under set -u even when empty.
+  if [[ ${#LVM_SNAPSHOTS[@]} -eq 0 ]]; then
+    return 0
+  fi
+  for lv_key in "${!LVM_SNAPSHOTS[@]}"; do
     echo "🧹 Cleaning up LVM snapshot for ${lv_key}..."
     snap_mount="${LVM_SNAPSHOTS[$lv_key]}"
     vg="${lv_key%%/*}"
@@ -100,7 +101,7 @@ ensure_snapshot() {
   local snap_mount="${LVM_SNAPSHOT_BASE_MOUNT}/${lv}"
 
   if [[ -n "${LVM_SNAPSHOTS[$key]+_}" ]]; then
-    echo "   (reusing existing snapshot for ${key})"
+    #echo "   (reusing existing snapshot for ${key})"
     return 0
   fi
 
@@ -191,14 +192,14 @@ done
 # === Remap exclude paths to snapshot mounts where applicable ===
 EFFECTIVE_EXCL=()
 
-excl_keys=("${BACKUP_EXCL[@]:-}")
-for excl in "${excl_keys[@]:-}"; do
-  [[ -z "$excl" ]] && continue
-  if remap_path "$excl"; then
-    echo "🔗 exclude ${excl} → ${REMAPPED_PATH}"
-  fi
-  EFFECTIVE_EXCL+=("$REMAPPED_PATH")
-done
+if [[ ${#BACKUP_EXCL[@]} -gt 0 ]]; then
+  for excl in "${BACKUP_EXCL[@]}"; do
+    if remap_path "$excl"; then
+      echo "🔗 exclude ${excl} → ${REMAPPED_PATH}"
+    fi
+    EFFECTIVE_EXCL+=("$REMAPPED_PATH")
+  done
+fi
 
 # === Script logic ===
 echo ""
@@ -217,13 +218,12 @@ for dest in "${BACKUP_DESTS[@]}"; do
     echo "skip borg check."
   fi
 
-  # Build exclude args as a proper array to handle paths with spaces
   exclargs=()
-  excl_keys=("${EFFECTIVE_EXCL[@]:-}")
-  for excl in "${excl_keys[@]:-}"; do
-    [[ -z "$excl" ]] && continue
-    exclargs+=(-e "$excl")
-  done
+  if [[ ${#EFFECTIVE_EXCL[@]} -gt 0 ]]; then
+    for excl in "${EFFECTIVE_EXCL[@]}"; do
+      exclargs+=(-e "$excl")
+    done
+  fi
 
   echo "borg create... ($(date))"
   sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg create \
