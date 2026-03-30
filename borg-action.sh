@@ -66,8 +66,8 @@ if [[ "$confirm" != "yes" ]]; then
 fi
 
 confirm=""
-if [[ "$BORG_ACTION" = extract* ]]; then
-  read -p "🚨 Really perform BORG_ACTION: ${BORG_ACTION}? This may delete data! (yes/no): " confirm
+if [[ "$BORG_ACTION" = extract* ]] || [[ "$BORG_ACTION" = delete ]] ; then
+  read -p "🚨 Really perform BORG_ACTION: ${BORG_ACTION}? This may/will delete data! (yes/no): " confirm
   if [[ "$confirm" != "yes" ]]; then
     echo "🛑 Operation cancelled."
     exit 1
@@ -89,7 +89,7 @@ for repo in $BORG_REPOS; do
   BORG_PASS_FILE=${SCRIPT_DIR}/.borg-pass-${repo}
   read -r BORG_PASSPHRASE < "$BORG_PASS_FILE"
 
-  if [[ $BORG_ARCHIVE == latest ]] && [[ ! $BORG_ACTION =~ (init|list|umount|unmount) ]]; then
+  if [[ $BORG_ARCHIVE == latest ]] && [[ ! $BORG_ACTION =~ (init|list|umount|unmount|delete) ]]; then
     echo "ℹ️  No archive name provided. 🔎 Find latest archive..."
     BORG_ARCHIVE=$(sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg list --short --last 1 "$repopath")
     if [[ -z "$BORG_ARCHIVE" ]]; then
@@ -147,6 +147,11 @@ for repo in $BORG_REPOS; do
       echo "init..."
       BORG_PASSPHRASE="$BORG_PASSPHRASE" borg init --encryption=repokey "$repopath"
       borg key export "$repopath"
+      ;;
+    
+    "delete") 
+      echo "delete..."
+      sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg delete "$repopath"::"$BORG_ARCHIVE"
       ;;
 
     "extract") 
