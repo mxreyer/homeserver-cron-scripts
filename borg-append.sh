@@ -12,8 +12,18 @@
 #                           file changes during backup creation
 #
 # Exclude format:
-#   -e /path/to/exclude     Excluded paths are automatically remapped to snapshot
-#                           mount points where applicable
+#   -e /path/to/exclude     Excluded paths are automatically remapped into the
+#                           staging root where applicable
+#
+# How it works:
+#   1. For each LVM source spec, create a snapshot and mount it read-only
+#   2. Build a staging root under /tmp/borg-staging that mirrors the real
+#      filesystem structure using bind mounts:
+#        /tmp/borg-staging/home        -> snapshot of ubuntu-vg/ubuntu-lv at /home
+#        /tmp/borg-staging/mnt/photos  -> snapshot of ubuntu-vg/pictures at /mnt/photos
+#        /tmp/borg-staging/mnt/videos  -> bind mount of /mnt/videos (no snapshot)
+#   3. cd into /tmp/borg-staging and run borg create from there, so paths are
+#      stored as home/, mnt/photos/, mnt/videos/ and restore correctly.
 #
 # Notes: Need to execute borg with sudo if the source files are owned by root.
 #
@@ -32,7 +42,8 @@ BACKUP_EXCL=()
 BORG_PASS_FILE=""
 BORG_CHECK=""
 LVM_SNAPSHOT_SIZE="5G"
-LVM_SNAPSHOT_BASE_MOUNT="/mnt/borg-snapshot"
+LVM_SNAPSHOT_BASE="/mnt/borg-snapshots"   # where raw snapshots are mounted
+STAGING_ROOT="/tmp/borg-staging"          # mirror of real fs structure for borg
 
 while getopts "s:d:e:p:cz:" opt; do
   case "$opt" in
@@ -47,28 +58,39 @@ done
 shift $((OPTIND - 1))
 BORG_FLAGS="$@"
 
-# === Snapshot registry ===
-# Tracks which VGs/LVs have been snapshotted to avoid duplicates.
-# Associative array: [vg/lv] -> snapshot mount point
-declare -A LVM_SNAPSHOTS  # vg/lv -> mount point
+# === Registries ===
+declare -A LVM_SNAPSHOTS   # [vg/lv] -> raw snapshot mount point
+STAGING_MOUNTS=()          # all bind mounts under STAGING_ROOT, for cleanup
 
 # === Error handling ===
 cleanup() {
   unset BORG_PASSPHRASE
-  # LVM_SNAPSHOTS is always declared (declare -A at top), so
-  # ${#LVM_SNAPSHOTS[@]} is safe under set -u even when empty.
-  if [[ ${#LVM_SNAPSHOTS[@]} -eq 0 ]]; then
-    return 0
+
+  # Unmount staging bind mounts in reverse order
+  if [[ ${#STAGING_MOUNTS[@]} -gt 0 ]]; then
+    echo "🧹 Unmounting staging bind mounts..."
+    for (( i=${#STAGING_MOUNTS[@]}-1; i>=0; i-- )); do
+      umount "${STAGING_MOUNTS[$i]}" 2>/dev/null || true
+    done
   fi
-  for lv_key in "${!LVM_SNAPSHOTS[@]}"; do
-    echo "🧹 Cleaning up LVM snapshot for ${lv_key}..."
-    snap_mount="${LVM_SNAPSHOTS[$lv_key]}"
-    vg="${lv_key%%/*}"
-    snapshot_name="borg-snapshot-${lv_key##*/}"
-    umount "$snap_mount" 2>/dev/null || true
-    lvremove -f "/dev/${vg}/${snapshot_name}" 2>/dev/null || true
-    echo "   removed snapshot for ${lv_key}"
-  done
+
+  # Remove staging root
+  if [[ -d "$STAGING_ROOT" ]]; then
+    rmdir --ignore-fail-on-non-empty "$STAGING_ROOT" 2>/dev/null || true
+  fi
+
+  # Unmount and remove LVM snapshots
+  if [[ ${#LVM_SNAPSHOTS[@]} -gt 0 ]]; then
+    echo "🧹 Removing LVM snapshots..."
+    for lv_key in "${!LVM_SNAPSHOTS[@]}"; do
+      snap_mount="${LVM_SNAPSHOTS[$lv_key]}"
+      vg="${lv_key%%/*}"
+      snapshot_name="borg-snapshot-${lv_key##*/}"
+      umount "$snap_mount" 2>/dev/null || true
+      lvremove -f "/dev/${vg}/${snapshot_name}" 2>/dev/null || true
+      echo "   removed snapshot for ${lv_key}"
+    done
+  fi
 }
 trap cleanup EXIT
 
@@ -86,19 +108,19 @@ is_lvm_src() {
 # === Helper: parse "vg/lv:/path" into SRC_VG, SRC_LV, SRC_PATH ===
 parse_lvm_src() {
   local spec="$1"
-  local lv_part="${spec%%:*}"   # e.g. ubuntu-vg/home-lv
-  SRC_PATH="${spec##*:}"        # e.g. /home
-  SRC_VG="${lv_part%%/*}"       # e.g. ubuntu-vg
-  SRC_LV="${lv_part##*/}"       # e.g. home-lv
+  local lv_part="${spec%%:*}"
+  SRC_PATH="${spec##*:}"
+  SRC_VG="${lv_part%%/*}"
+  SRC_LV="${lv_part##*/}"
 }
 
-# === Helper: create snapshot for vg/lv if not already done ===
+# === Helper: create LVM snapshot if not already done ===
 ensure_snapshot() {
   local vg="$1"
   local lv="$2"
   local key="${vg}/${lv}"
   local snapshot_name="borg-snapshot-${lv}"
-  local snap_mount="${LVM_SNAPSHOT_BASE_MOUNT}/${lv}"
+  local snap_mount="${LVM_SNAPSHOT_BASE}/${lv}"
 
   if [[ -n "${LVM_SNAPSHOTS[$key]+_}" ]]; then
     #echo "   (reusing existing snapshot for ${key})"
@@ -112,26 +134,26 @@ ensure_snapshot() {
   echo "   ✅ Mounted read-only at ${snap_mount}"
 
   LVM_SNAPSHOTS["$key"]="$snap_mount"
+
+  # Auto-exclude the raw snapshot mount point so it isn't picked up
+  # if a plain source covers its parent directory
+  BACKUP_EXCL+=("$snap_mount")
+  echo "   🙅 Auto-excluded raw snapshot mount ${snap_mount}"
 }
 
-# === Helper: remap a path to its snapshot mount if it falls under an LVM source ===
-# Sets REMAPPED_PATH. Returns 0 if remapped, 1 if not.
-remap_path() {
-  local path="$1"
-  for src in "${BACKUP_SRCS[@]}"; do
-    if is_lvm_src "$src"; then
-      parse_lvm_src "$src"
-      local key="${SRC_VG}/${SRC_LV}"
-      if [[ -n "${LVM_SNAPSHOTS[$key]+_}" && "$path" == "${SRC_PATH}"* ]]; then
-        local snap_mount="${LVM_SNAPSHOTS[$key]}"
-        # Replace the original mount prefix with the snapshot mount prefix
-        REMAPPED_PATH="${snap_mount}${path#${SRC_PATH}}"
-        return 0
-      fi
-    fi
-  done
-  REMAPPED_PATH="$path"
-  return 1
+# === Helper: bind-mount src into staging root, mirroring the real path ===
+stage_path() {
+  local src="$1"           # real or snapshot path to bind-mount
+  local logical_path="$2"  # the logical path this represents (e.g. /home)
+
+  # Strip leading slash to get relative path, then construct staging target
+  local rel_path="${logical_path#/}"
+  local staging_target="${STAGING_ROOT}/${rel_path}"
+
+  mkdir -p "$staging_target"
+  mount --bind "$src" "$staging_target"
+  STAGING_MOUNTS+=("$staging_target")
+  echo "   📂 staged ${logical_path} → ${staging_target}"
 }
 
 # === Check user input ===
@@ -173,38 +195,41 @@ for dest in "${BACKUP_DESTS[@]}"; do
   fi
 done
 
-# === Create snapshots and build effective source list ===
-EFFECTIVE_SRCS=()
+# === Create snapshots and build staging root ===
+echo "🏗️  Building staging root at ${STAGING_ROOT}..."
+mkdir -p "$STAGING_ROOT"
+
+STAGING_SRCS=()  # relative paths under STAGING_ROOT to pass to borg
 
 for src in "${BACKUP_SRCS[@]}"; do
   if is_lvm_src "$src"; then
     parse_lvm_src "$src"
     ensure_snapshot "$SRC_VG" "$SRC_LV"
     snap_mount="${LVM_SNAPSHOTS[${SRC_VG}/${SRC_LV}]}"
-    EFFECTIVE_SRCS+=("${snap_mount}${SRC_PATH}")
-    echo "🔗 ${src} → ${snap_mount}${SRC_PATH}"
+    # Bind-mount the snapshot subdir into staging, mirroring the logical path
+    stage_path "${snap_mount}${SRC_PATH}" "$SRC_PATH"
   else
-    EFFECTIVE_SRCS+=("$src")
-    echo "🔗 ${src} → ${src} (no snapshot)"
+    # Plain source: bind-mount the real path into staging
+    stage_path "$src" "$src"
   fi
+  # Record the relative staging path for borg (strip leading slash)
+  rel="${src##*:}"   # for LVM specs, take the path part; for plain, use as-is
+  STAGING_SRCS+=("${rel#/}")
 done
 
-# === Remap exclude paths to snapshot mounts where applicable ===
+# === Remap exclude paths into staging root ===
 EFFECTIVE_EXCL=()
-
 if [[ ${#BACKUP_EXCL[@]} -gt 0 ]]; then
   for excl in "${BACKUP_EXCL[@]}"; do
-    if remap_path "$excl"; then
-      echo "🔗 exclude ${excl} → ${REMAPPED_PATH}"
-    fi
-    EFFECTIVE_EXCL+=("$REMAPPED_PATH")
+    # Strip leading slash — excludes are relative to STAGING_ROOT
+    EFFECTIVE_EXCL+=("${excl#/}")
   done
 fi
 
 # === Script logic ===
 echo ""
 echo "🤖 Append to borg backup..."
-echo "💾 Sources: ${EFFECTIVE_SRCS[*]}"
+echo "💾 Staging sources: ${STAGING_SRCS[*]}"
 echo "👎 Exclude: ${EFFECTIVE_EXCL[*]+"${EFFECTIVE_EXCL[*]}"}"
 echo "🗄️  Borg repos: ${BACKUP_DESTS[*]}"
 echo "🏳️  Borg flags: $BORG_FLAGS"
@@ -226,11 +251,20 @@ for dest in "${BACKUP_DESTS[@]}"; do
   fi
 
   echo "borg create... ($(date))"
-  sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg create \
-    "$dest"::"{now}" \
-    "${EFFECTIVE_SRCS[@]}" \
-    "${exclargs[@]:-}" \
-    $BORG_FLAGS
+  # cd into staging root so borg stores paths as home/, mnt/photos/ etc.
+  # and they restore correctly to /home, /mnt/photos etc.
+  # --one-file-system prevents borg from crossing bind mount boundaries,
+  # ensuring each staged source is backed up exactly once.
+  (
+    cd "$STAGING_ROOT"
+    sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg create \
+      --one-file-system \
+      "$dest"::"{now}" \
+      "${STAGING_SRCS[@]}" \
+      "${exclargs[@]+"${exclargs[@]}"}" \
+      $BORG_FLAGS
+  )
+
   echo "borg prune... ($(date))"
   sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg prune \
     --keep-daily=7 --keep-weekly=4 --keep-monthly=12 "$dest"
