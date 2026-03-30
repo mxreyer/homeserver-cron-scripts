@@ -11,6 +11,10 @@
 #   -s vg/lv:/mount/point   we snapshot vg/lv first, then back up from snapshot to avoid
 #                           file changes during backup creation
 #
+# Exclude format:
+#   -e /path/to/exclude     Excluded paths are automatically remapped to snapshot
+#                           mount points where applicable
+#
 # Notes: Need to execute borg with sudo if the source files are owned by root.
 #
 # Preparation: Initialize the borg repo and create the corresponding passkey file (chmod 600).
@@ -51,13 +55,16 @@ declare -A LVM_SNAPSHOTS  # vg/lv -> mount point
 # === Error handling ===
 cleanup() {
   unset BORG_PASSPHRASE
-  for lv_key in "${!LVM_SNAPSHOTS[@]:-}"; do
+  # Copy keys to a plain array first to avoid unbound variable errors
+  # on empty associative arrays under set -u.
+  lvm_keys=("${!LVM_SNAPSHOTS[@]:-}")
+  for lv_key in "${lvm_keys[@]:-}"; do
     [[ -z "$lv_key" ]] && continue
     echo "🧹 Cleaning up LVM snapshot for ${lv_key}..."
-    mount="${LVM_SNAPSHOTS[$lv_key]}"
+    snap_mount="${LVM_SNAPSHOTS[$lv_key]}"
     vg="${lv_key%%/*}"
     snapshot_name="borg-snapshot-${lv_key##*/}"
-    umount "$mount" 2>/dev/null || true
+    umount "$snap_mount" 2>/dev/null || true
     lvremove -f "/dev/${vg}/${snapshot_name}" 2>/dev/null || true
     echo "   removed snapshot for ${lv_key}"
   done
@@ -70,14 +77,13 @@ on_error() {
 }
 trap on_error ERR
 
-# === Helper: parse source spec ===
-# Returns 0 if lvm spec (vg/lv:/path), 1 if plain path
+# === Helper: test if a source spec is an LVM spec ===
 is_lvm_src() {
   [[ "$1" == */*:/* ]]
 }
 
+# === Helper: parse "vg/lv:/path" into SRC_VG, SRC_LV, SRC_PATH ===
 parse_lvm_src() {
-  # Usage: parse_lvm_src "vg/lv:/path" -> sets SRC_VG, SRC_LV, SRC_PATH
   local spec="$1"
   local lv_part="${spec%%:*}"   # e.g. ubuntu-vg/home-lv
   SRC_PATH="${spec##*:}"        # e.g. /home
@@ -85,27 +91,46 @@ parse_lvm_src() {
   SRC_LV="${lv_part##*/}"       # e.g. home-lv
 }
 
-# === Ensure snapshot exists for a given vg/lv, return its mount point ===
+# === Helper: create snapshot for vg/lv if not already done ===
 ensure_snapshot() {
   local vg="$1"
   local lv="$2"
   local key="${vg}/${lv}"
   local snapshot_name="borg-snapshot-${lv}"
-  local mount="${LVM_SNAPSHOT_BASE_MOUNT}/${lv}"
+  local snap_mount="${LVM_SNAPSHOT_BASE_MOUNT}/${lv}"
 
   if [[ -n "${LVM_SNAPSHOTS[$key]+_}" ]]; then
-    # Already snapshotted, reuse
     echo "   (reusing existing snapshot for ${key})"
     return 0
   fi
 
   echo "📸 Creating LVM snapshot of /dev/${vg}/${lv} (size: ${LVM_SNAPSHOT_SIZE})..."
   lvcreate -L"${LVM_SNAPSHOT_SIZE}" -s -n "${snapshot_name}" "/dev/${vg}/${lv}"
-  mkdir -p "${mount}"
-  mount -o ro "/dev/${vg}/${snapshot_name}" "${mount}"
-  echo "   ✅ Mounted read-only at ${mount}"
+  mkdir -p "${snap_mount}"
+  mount -o ro "/dev/${vg}/${snapshot_name}" "${snap_mount}"
+  echo "   ✅ Mounted read-only at ${snap_mount}"
 
-  LVM_SNAPSHOTS["$key"]="$mount"
+  LVM_SNAPSHOTS["$key"]="$snap_mount"
+}
+
+# === Helper: remap a path to its snapshot mount if it falls under an LVM source ===
+# Sets REMAPPED_PATH. Returns 0 if remapped, 1 if not.
+remap_path() {
+  local path="$1"
+  for src in "${BACKUP_SRCS[@]}"; do
+    if is_lvm_src "$src"; then
+      parse_lvm_src "$src"
+      local key="${SRC_VG}/${SRC_LV}"
+      if [[ -n "${LVM_SNAPSHOTS[$key]+_}" && "$path" == "${SRC_PATH}"* ]]; then
+        local snap_mount="${LVM_SNAPSHOTS[$key]}"
+        # Replace the original mount prefix with the snapshot mount prefix
+        REMAPPED_PATH="${snap_mount}${path#${SRC_PATH}}"
+        return 0
+      fi
+    fi
+  done
+  REMAPPED_PATH="$path"
+  return 1
 }
 
 # === Check user input ===
@@ -163,11 +188,23 @@ for src in "${BACKUP_SRCS[@]}"; do
   fi
 done
 
+# === Remap exclude paths to snapshot mounts where applicable ===
+EFFECTIVE_EXCL=()
+
+excl_keys=("${BACKUP_EXCL[@]:-}")
+for excl in "${excl_keys[@]:-}"; do
+  [[ -z "$excl" ]] && continue
+  if remap_path "$excl"; then
+    echo "🔗 exclude ${excl} → ${REMAPPED_PATH}"
+  fi
+  EFFECTIVE_EXCL+=("$REMAPPED_PATH")
+done
+
 # === Script logic ===
 echo ""
 echo "🤖 Append to borg backup..."
 echo "💾 Sources: ${EFFECTIVE_SRCS[*]}"
-echo "👎 Exclude: ${BACKUP_EXCL[*]+"${BACKUP_EXCL[*]}"}"
+echo "👎 Exclude: ${EFFECTIVE_EXCL[*]+"${EFFECTIVE_EXCL[*]}"}"
 echo "🗄️  Borg repos: ${BACKUP_DESTS[*]}"
 echo "🏳️  Borg flags: $BORG_FLAGS"
 
@@ -179,11 +216,24 @@ for dest in "${BACKUP_DESTS[@]}"; do
   else
     echo "skip borg check."
   fi
+
+  # Build exclude args as a proper array to handle paths with spaces
+  exclargs=()
+  excl_keys=("${EFFECTIVE_EXCL[@]:-}")
+  for excl in "${excl_keys[@]:-}"; do
+    [[ -z "$excl" ]] && continue
+    exclargs+=(-e "$excl")
+  done
+
   echo "borg create... ($(date))"
-  exclargs=$( (( ${#BACKUP_EXCL[@]} == 0 )) || printf -- "-e %s " "${BACKUP_EXCL[@]}")
-  sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg create "$dest"::"{now}" "${EFFECTIVE_SRCS[@]}" $exclargs $BORG_FLAGS
+  sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg create \
+    "$dest"::"{now}" \
+    "${EFFECTIVE_SRCS[@]}" \
+    "${exclargs[@]:-}" \
+    $BORG_FLAGS
   echo "borg prune... ($(date))"
-  sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg prune --keep-daily=7 --keep-weekly=4 --keep-monthly=12 "$dest"
+  sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg prune \
+    --keep-daily=7 --keep-weekly=4 --keep-monthly=12 "$dest"
   echo "borg compact... ($(date))"
   sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg compact "$dest"
 done
