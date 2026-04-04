@@ -80,7 +80,7 @@ cleanup() {
   fi
 
   # Unmount and remove LVM snapshots
-  if [[ ${#LVM_SNAPSHOTS[@]} -gt 0 ]]; then
+  if [[ -v LVM_SNAPSHOTS && ${#LVM_SNAPSHOTS[@]} -gt 0 ]]; then
     echo "🧹 Removing LVM snapshots..."
     for lv_key in "${!LVM_SNAPSHOTS[@]}"; do
       snap_mount="${LVM_SNAPSHOTS[$lv_key]}"
