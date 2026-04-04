@@ -22,7 +22,12 @@ ADD_SERVER_BACKUP_SOURCES="${ADD_SERVER_BACKUP_SOURCES:-}"
 sudo dpkg --get-selections | sudo tee /root/pkglist.txt > /dev/null
 
 BACKUP_DESTS=("${BACKUP_LOC}/server/borg" "${BACKUP_SSH}/server/borg")
-BACKUP_SRCS=(ubuntu-vg/ubuntu-lv:/etc ubuntu-vg/ubuntu-lv:/home ubuntu-vg/ubuntu-lv:/root ubuntu-vg/ubuntu-lv:/usr/local ubuntu-vg/ubuntu-lv:/opt ubuntu-vg/ubuntu-lv:/var/lib ubuntu-vg/ubuntu-lv:/var/spool/cron/ ubuntu-vg/ubuntu-lv:/boot /mnt $ADD_SERVER_BACKUP_SOURCES)
+if [[ -z $VG ]] || [[ -z $LV ]]; then
+  BACKUP_SRCS=(/etc /home /root /usr/local /opt /var/lib /var/spool/cron/ /boot /mnt $ADD_SERVER_BACKUP_SOURCES)
+else
+  BACKUP_SRCS=($VG/$LV:/etc $VG/$LV:/home $VG/$LV:/root $VG/$LV:/usr/local $VG/$LV:/opt $VG/$LV:/var/lib $VG/$LV:/var/spool/cron/ $VG/$LV:/boot /mnt $ADD_SERVER_BACKUP_SOURCES)
+fi
+echo $BACKUP_SRCS
 # note that /mnt/photos is the only subdir of /mnt under ubuntu-vg/pictures.
 # Thus, we could do the following to separate /mnt/pictures from the rest and
 # enable snapshotting for this subdir. However, we don't really need
