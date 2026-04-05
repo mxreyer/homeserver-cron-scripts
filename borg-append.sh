@@ -64,6 +64,7 @@ STAGING_MOUNTS=()          # all bind mounts under STAGING_ROOT, for cleanup
 
 # === Error handling ===
 cleanup() {
+  trap - ERR
   unset BORG_PASSPHRASE
 
   # Unmount staging bind mounts in reverse order
