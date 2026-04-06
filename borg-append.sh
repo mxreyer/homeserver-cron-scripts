@@ -64,7 +64,6 @@ STAGING_MOUNTS=()          # all bind mounts under STAGING_ROOT, for cleanup
 
 # === Error handling ===
 cleanup() {
-  trap - ERR
   unset BORG_PASSPHRASE
 
   # Unmount staging bind mounts in reverse order
@@ -77,11 +76,12 @@ cleanup() {
 
   # Remove staging root
   if [[ -d "$STAGING_ROOT" ]]; then
+    echo "🧹 Removing staging root..."
     rmdir --ignore-fail-on-non-empty "$STAGING_ROOT" 2>/dev/null || true
   fi
 
   # Unmount and remove LVM snapshots
-  if [[ -v LVM_SNAPSHOTS && ${#LVM_SNAPSHOTS[@]} -gt 0 ]]; then
+  if [[ ${#LVM_SNAPSHOTS[@]} -gt 0 ]]; then
     echo "🧹 Removing LVM snapshots..."
     for lv_key in "${!LVM_SNAPSHOTS[@]}"; do
       snap_mount="${LVM_SNAPSHOTS[$lv_key]}"
