@@ -32,8 +32,10 @@ trap 'rm -rf "$tmpfile"' EXIT # delete tmp files
 
 # === Step 0: Ensure tmp backup folder is empty ===
 if [ -n "$(find ${BESZEL_BACKUP_FOLDER} -mindepth 1 -print -quit)" ]; then
-  echo "❌ Tmp backup location is not empty."
-  exit 1
+  #echo "❌ Tmp backup location is not empty."
+  #exit 1
+  echo "🧹 Clean tmp backup location (was not not empty)."
+  rm -rf ${BESZEL_BACKUP_FOLDER}/*
 else
   echo "✅ Backup location is empty."
 fi
