@@ -68,15 +68,15 @@ trap on_exit EXIT
   -u "$HCHK_PAPERLESS" \
   -i "${SCRIPT_DIR}/trigger-backup-scripts/paperless-trigger-backup.sh" \
   -y ${DOCKER_COMPOSE_DIR}/paperless/compose.yaml \
-  -s ${DOCKER_BINDS_DIR}/paperless/ \
-  -s ${DOCKER_VOL_LOC}/paperless_caddy_certs \
-  -s ${DOCKER_VOL_LOC}/paperless_caddy_config \
-  -s ${DOCKER_VOL_LOC}/paperless_caddy_data \
-  -s ${DOCKER_VOL_LOC}/paperless_data \
-  -s ${DOCKER_VOL_LOC}/paperless_media \
-  -s ${DOCKER_VOL_LOC}/paperless_pgdata \
-  -s ${DOCKER_VOL_LOC}/paperless_redisdata \
-  -s ${DOCKER_VOL_LOC}/paperless_tailscale_sock \
+  -s $VG/$LV:${DOCKER_BINDS_DIR}/paperless/ \
+  -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_caddy_certs \
+  -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_caddy_config \
+  -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_caddy_data \
+  -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_data \
+  -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_media \
+  -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_pgdata \
+  -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_redisdata \
+  -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_tailscale_sock \
   -d "${BACKUP_LOC}/paperless/borg" \
   -d "${BACKUP_SSH}/paperless/borg" \
   2>&1 \
@@ -92,8 +92,8 @@ trap on_exit EXIT
   -i "${SCRIPT_DIR}/trigger-backup-scripts/immich-trigger-backup.sh" \
   -y ${DOCKER_COMPOSE_DIR}/immich/compose.yaml \
   -C immich-server -C immich-machine-learning -C redis \
-  -s ${DOCKER_BINDS_DIR}/immich \
-  -s ${DOCKER_VOL_LOC}/immich_model-cache \
+  -s $VG/$LV:${DOCKER_BINDS_DIR}/immich \
+  -s $VG/$LV:${DOCKER_VOL_LOC}/immich_model-cache \
   -e ${DOCKER_BINDS_DIR}/immich/library/thumbs/ \
   -e ${DOCKER_BINDS_DIR}/immich/library/encoded-video/ \
   -d "${BACKUP_LOC}/immich/borg" \
@@ -109,7 +109,7 @@ trap on_exit EXIT
   -u "$HCHK_BESZEL" \
   -i "${SCRIPT_DIR}/trigger-backup-scripts/beszel-trigger-backup.sh" \
   -y ${DOCKER_COMPOSE_DIR}/beszel/compose.yaml \
-  -s ${DOCKER_BINDS_DIR}/beszel \
+  -s $VG/$LV:${DOCKER_BINDS_DIR}/beszel \
   -d "${BACKUP_LOC}/beszel/borg" \
   -d "${BACKUP_SSH}/beszel/borg" \
   2>&1 \
@@ -124,12 +124,12 @@ trap on_exit EXIT
 #  -i "${SCRIPT_DIR}/trigger-backup-scripts/healthchecks-trigger-backup.sh" \
 #  -y ${DOCKER_COMPOSE_DIR}/healthchecks/compose.yaml \
 #  -C web \
-#  -s ${DOCKER_BINDS_DIR}/healthchecks \
-#  -s ${DOCKER_VOL_LOC}/healthchecks_caddy_certs \
-#  -s ${DOCKER_VOL_LOC}/healthchecks_caddy_config \
-#  -s ${DOCKER_VOL_LOC}/healthchecks_caddy_data \
-#  -s ${DOCKER_VOL_LOC}/healthchecks_db_data \
-#  -s ${DOCKER_VOL_LOC}/healthchecks_tailscale_sock \
+#  -s $VG/$LV:${DOCKER_BINDS_DIR}/healthchecks \
+#  -s $VG/$LV:${DOCKER_VOL_LOC}/healthchecks_caddy_certs \
+#  -s $VG/$LV:${DOCKER_VOL_LOC}/healthchecks_caddy_config \
+#  -s $VG/$LV:${DOCKER_VOL_LOC}/healthchecks_caddy_data \
+#  -s $VG/$LV:${DOCKER_VOL_LOC}/healthchecks_db_data \
+#  -s $VG/$LV:${DOCKER_VOL_LOC}/healthchecks_tailscale_sock \
 #  -d "${BACKUP_LOC}/healthchecks/borg" \
 #  -d "${BACKUP_SSH}/healthchecks/borg" \
 #  2>&1 \
@@ -143,8 +143,8 @@ trap on_exit EXIT
   -u "$HCHK_MEALIE" \
   -i "${SCRIPT_DIR}/trigger-backup-scripts/mealie-trigger-backup.sh" \
   -y ${DOCKER_COMPOSE_DIR}/mealie/compose.yaml \
-  -s ${DOCKER_BINDS_DIR}/mealie \
-  -s ${DOCKER_VOL_LOC}/mealie_data \
+  -s $VG/$LV:${DOCKER_BINDS_DIR}/mealie \
+  -s $VG/$LV:${DOCKER_VOL_LOC}/mealie_data \
   -d "${BACKUP_LOC}/mealie/borg" \
   -d "${BACKUP_SSH}/mealie/borg" \
   2>&1 \
@@ -155,9 +155,9 @@ trap on_exit EXIT
   -p ${SCRIPT_DIR}/.borg-pass-ollama \
   -u "$HCHK_OLLAMA" \
   -y ${DOCKER_COMPOSE_DIR}/ollama/compose.yaml \
-  -s ${DOCKER_BINDS_DIR}/ollama \
-  -s ${DOCKER_VOL_LOC}/ollama_ollama_data/ \
-  -s ${DOCKER_VOL_LOC}/ollama_ollama_webui_data/ \
+  -s $VG/$LV:${DOCKER_BINDS_DIR}/ollama \
+  -s $VG/$LV:${DOCKER_VOL_LOC}/ollama_ollama_data/ \
+  -s $VG/$LV:${DOCKER_VOL_LOC}/ollama_ollama_webui_data/ \
   -d "${BACKUP_LOC}/ollama/borg" \
   -d "${BACKUP_SSH}/ollama/borg" \
   2>&1 \
@@ -168,9 +168,9 @@ trap on_exit EXIT
   -p ${SCRIPT_DIR}/.borg-pass-searxng \
   -u "$HCHK_SEARXNG" \
   -y ${DOCKER_COMPOSE_DIR}/searxng/compose.yaml \
-  -s ${DOCKER_BINDS_DIR}/searxng \
-  -s ${DOCKER_VOL_LOC}/searxng_searxng-data \
-  -s ${DOCKER_VOL_LOC}/searxng_valkey-data2 \
+  -s $VG/$LV:${DOCKER_BINDS_DIR}/searxng \
+  -s $VG/$LV:${DOCKER_VOL_LOC}/searxng_searxng-data \
+  -s $VG/$LV:${DOCKER_VOL_LOC}/searxng_valkey-data2 \
   -d "${BACKUP_LOC}/searxng/borg" \
   -d "${BACKUP_SSH}/searxng/borg" \
   2>&1 \
@@ -181,11 +181,11 @@ trap on_exit EXIT
   -p ${SCRIPT_DIR}/.borg-pass-stirling \
   -u "$HCHK_STIRLING" \
   -y ${DOCKER_COMPOSE_DIR}/stirling/compose.yaml \
-  -s ${DOCKER_BINDS_DIR}/stirling \
-  -s ${DOCKER_VOL_LOC}/stirling_caddy_certs \
-  -s ${DOCKER_VOL_LOC}/stirling_caddy_config \
-  -s ${DOCKER_VOL_LOC}/stirling_caddy_data \
-  -s ${DOCKER_VOL_LOC}/stirling_tailscale_sock \
+  -s $VG/$LV:${DOCKER_BINDS_DIR}/stirling \
+  -s $VG/$LV:${DOCKER_VOL_LOC}/stirling_caddy_certs \
+  -s $VG/$LV:${DOCKER_VOL_LOC}/stirling_caddy_config \
+  -s $VG/$LV:${DOCKER_VOL_LOC}/stirling_caddy_data \
+  -s $VG/$LV:${DOCKER_VOL_LOC}/stirling_tailscale_sock \
   -d "${BACKUP_LOC}/stirling/borg" \
   -d "${BACKUP_SSH}/stirling/borg" \
   2>&1 \
@@ -196,8 +196,8 @@ trap on_exit EXIT
   -p ${SCRIPT_DIR}/.borg-pass-firefly \
   -u "$HCHK_FIREFLY" \
   -y ${DOCKER_COMPOSE_DIR}/firefly/compose.yaml \
-  -s ${DOCKER_VOL_LOC}/firefly_firefly_iii_upload \
-  -s ${DOCKER_VOL_LOC}/firefly_firefly_iii_db \
+  -s $VG/$LV:${DOCKER_VOL_LOC}/firefly_firefly_iii_upload \
+  -s $VG/$LV:${DOCKER_VOL_LOC}/firefly_firefly_iii_db \
   -d "${BACKUP_LOC}/firefly/borg" \
   -d "${BACKUP_SSH}/firefly/borg" \
   2>&1 \
@@ -211,8 +211,8 @@ trap on_exit EXIT
 #  -y ${DOCKER_COMPOSE_DIR}/XXX/compose.yaml \
 #  -c container_post\
 #  -C container_pre\
-#  -s ${DOCKER_BINDS_DIR}/paperless/consume/ \
-#  -s ${DOCKER_VOL_LOC}/XXX \ 
+#  -s $VG/$LV:${DOCKER_BINDS_DIR}/paperless/consume/ \
+#  -s $VG/$LV:${DOCKER_VOL_LOC}/XXX \ 
 #  -d "${BACKUP_LOC}/paperless/borg"
 #  -d "${BACKUP_SSH}/paperless/borg"
 #  -f "--verbose" \
