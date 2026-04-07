@@ -27,7 +27,7 @@ if [[ -z $VG ]] || [[ -z $LV ]]; then
 else
   BACKUP_SRCS=($VG/$LV:/etc $VG/$LV:/home $VG/$LV:/root $VG/$LV:/usr/local $VG/$LV:/opt $VG/$LV:/var/lib $VG/$LV:/var/spool/cron/ $VG/$LV:/boot /mnt $ADD_SERVER_BACKUP_SOURCES)
 fi
-echo $BACKUP_SRCS
+echo "backup sources: ${BACKUP_SRCS[@]}"
 # note that /mnt/photos is the only subdir of /mnt under ubuntu-vg/pictures.
 # Thus, we could do the following to separate /mnt/pictures from the rest and
 # enable snapshotting for this subdir. However, we don't really need
