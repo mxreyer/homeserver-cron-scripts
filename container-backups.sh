@@ -203,6 +203,18 @@ trap on_exit EXIT
   2>&1 \
   | tee ${SCRIPT_DIR}/logs/firefly.log
 
+# actual
+"$BACKUP_SCRIPT" \
+  -p ${SCRIPT_DIR}/.borg-pass-actual \
+  -u "$HCHK_ACTUAL" \
+  -i "${SCRIPT_DIR}/trigger-backup-scripts/XXX-trigger-backup.sh" \
+  -y ${DOCKER_COMPOSE_DIR}/actual/compose.yaml \
+  -s $VG/$LV:${DOCKER_BINDS_DIR}/actual/data/ \
+  -d "${BACKUP_LOC}/actual/borg" \
+  -d "${BACKUP_SSH}/actual/borg" \
+  2>&1 \
+  | tee ${SCRIPT_DIR}/logs/firefly.log
+
 # template
 #"$BACKUP_SCRIPT" \
 #  -p ${SCRIPT_DIR}/.borg-pass- \
@@ -213,6 +225,8 @@ trap on_exit EXIT
 #  -C container_pre\
 #  -s $VG/$LV:${DOCKER_BINDS_DIR}/paperless/consume/ \
 #  -s $VG/$LV:${DOCKER_VOL_LOC}/XXX \ 
-#  -d "${BACKUP_LOC}/paperless/borg"
-#  -d "${BACKUP_SSH}/paperless/borg"
+#  -d "${BACKUP_LOC}/paperless/borg" \
+#  -d "${BACKUP_SSH}/paperless/borg" \
 #  -f "--verbose" \
+#  2>&1 \
+#  | tee ${SCRIPT_DIR}/logs/firefly.log
