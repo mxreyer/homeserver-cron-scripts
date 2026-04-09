@@ -3,7 +3,7 @@
 # Script Name: webservice-health-ping.sh
 # Description : Ping container web urls and ping healthcheck if successful. Should be
 #               scheduled with cron, e.g.
-#               0 * * * * /bin/bash -c '<scriptdir>/webservice-health-ping.sh >> <scriptdir>/webservice-health-ping.log 2>&1'
+#               0 * * * * /bin/bash -c '<scriptdir>/webservice-health-ping.sh >> <logs_dir>/webservice-health-ping.log 2>&1'
 # ==============================================================================
 
 set -euo pipefail # exit on error, undef vars, or failed pipeline

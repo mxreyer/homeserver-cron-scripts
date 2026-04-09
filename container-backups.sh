@@ -80,7 +80,7 @@ trap on_exit EXIT
   -d "${BACKUP_LOC}/paperless/borg" \
   -d "${BACKUP_SSH}/paperless/borg" \
   2>&1 \
-  | tee ${SCRIPT_DIR}/logs/paperless.log
+  | tee ${LOGS_DIR}/backup-paperless.log
 #-d "${BACKUP_SSH}/paperless/borg" \
 
 # immich
@@ -99,7 +99,7 @@ trap on_exit EXIT
   -d "${BACKUP_LOC}/immich/borg" \
   -d "${BACKUP_SSH}/immich/borg" \
   2>&1 \
-  | tee ${SCRIPT_DIR}/logs/immich.log
+  | tee ${LOGS_DIR}/backup-immich.log
 
 # beszel
 # On top of backing up bind mounts and volumes, create full docker-agnostic
@@ -113,7 +113,7 @@ trap on_exit EXIT
   -d "${BACKUP_LOC}/beszel/borg" \
   -d "${BACKUP_SSH}/beszel/borg" \
   2>&1 \
-  | tee ${SCRIPT_DIR}/logs/beszel.log
+  | tee ${LOGS_DIR}/backup-beszel.log
 
 ## healthchecks
 ## On top of backing up bind mounts and volumes, create full docker-agnostic
@@ -133,7 +133,7 @@ trap on_exit EXIT
 #  -d "${BACKUP_LOC}/healthchecks/borg" \
 #  -d "${BACKUP_SSH}/healthchecks/borg" \
 #  2>&1 \
-#  | tee ${SCRIPT_DIR}/logs/healthchecks.log
+#  | tee ${LOGS_DIR}/backup-healthchecks.log
 
 # mealie
 # On top of backing up bind mounts and volumes, create full docker-agnostic
@@ -148,7 +148,7 @@ trap on_exit EXIT
   -d "${BACKUP_LOC}/mealie/borg" \
   -d "${BACKUP_SSH}/mealie/borg" \
   2>&1 \
-  | tee ${SCRIPT_DIR}/logs/mealie.log
+  | tee ${LOGS_DIR}/backup-mealie.log
 
 # ollama
 "$BACKUP_SCRIPT" \
@@ -161,7 +161,7 @@ trap on_exit EXIT
   -d "${BACKUP_LOC}/ollama/borg" \
   -d "${BACKUP_SSH}/ollama/borg" \
   2>&1 \
-  | tee ${SCRIPT_DIR}/logs/ollama.log
+  | tee ${LOGS_DIR}/backup-ollama.log
 
 # searxng
 "$BACKUP_SCRIPT" \
@@ -174,7 +174,7 @@ trap on_exit EXIT
   -d "${BACKUP_LOC}/searxng/borg" \
   -d "${BACKUP_SSH}/searxng/borg" \
   2>&1 \
-  | tee ${SCRIPT_DIR}/logs/searxng.log
+  | tee ${LOGS_DIR}/backup-searxng.log
 
 # stirling
 "$BACKUP_SCRIPT" \
@@ -189,7 +189,7 @@ trap on_exit EXIT
   -d "${BACKUP_LOC}/stirling/borg" \
   -d "${BACKUP_SSH}/stirling/borg" \
   2>&1 \
-  | tee ${SCRIPT_DIR}/logs/stirling.log
+  | tee ${LOGS_DIR}/backup-stirling.log
 
 # firefly
 "$BACKUP_SCRIPT" \
@@ -201,19 +201,18 @@ trap on_exit EXIT
   -d "${BACKUP_LOC}/firefly/borg" \
   -d "${BACKUP_SSH}/firefly/borg" \
   2>&1 \
-  | tee ${SCRIPT_DIR}/logs/firefly.log
+  | tee ${LOGS_DIR}/backup-firefly.log
 
 # actual
 "$BACKUP_SCRIPT" \
   -p ${SCRIPT_DIR}/.borg-pass-actual \
   -u "$HCHK_ACTUAL" \
-  -i "${SCRIPT_DIR}/trigger-backup-scripts/XXX-trigger-backup.sh" \
   -y ${DOCKER_COMPOSE_DIR}/actual/compose.yaml \
   -s $VG/$LV:${DOCKER_BINDS_DIR}/actual/data/ \
   -d "${BACKUP_LOC}/actual/borg" \
   -d "${BACKUP_SSH}/actual/borg" \
   2>&1 \
-  | tee ${SCRIPT_DIR}/logs/firefly.log
+  | tee ${LOGS_DIR}/backup-actual.log
 
 # template
 #"$BACKUP_SCRIPT" \
@@ -229,4 +228,4 @@ trap on_exit EXIT
 #  -d "${BACKUP_SSH}/paperless/borg" \
 #  -f "--verbose" \
 #  2>&1 \
-#  | tee ${SCRIPT_DIR}/logs/firefly.log
+#  | tee ${LOGS_DIR}/backup-firefly.log

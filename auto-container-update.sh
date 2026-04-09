@@ -2,7 +2,7 @@
 # ==============================================================================
 # Script Name: auto-container-update.sh
 # Description: Updates all docker compose projects. Should be run via cron like 
-#               30 4 * * 1 /bin/bash -c '<scriptdir>/auto-container-update.sh >> <scriptdir>/logs/auto-container-update.log 2>&1'
+#               30 4 * * 1 /bin/bash -c '<scriptdir>/auto-container-update.sh >> <logs_dir>/auto-container-update.log 2>&1'
 # ==============================================================================
 
 set -euo pipefail # exit on error, undef vars, or failed pipeline
