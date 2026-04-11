@@ -7,6 +7,9 @@ BACKUP_SSH=""
 TS_DOMAIN=""
 WEB_SERVICES=""
 ADD_SERVER_BACKUP_SOURCES=""
+ADD_SERVER_BACKUP_EXCLSNS="" # e.g. log files that often change during backup,
+                             # causing BORG error messages (when snapshotted
+                             # backup not possible)
 VG=""
 LV=""
 LOGS_DIR=""

@@ -17,6 +17,7 @@ set -o errtrace   # inherit ERR trap by functions, command subs, subshells
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/CONFIG.sh"
 ADD_SERVER_BACKUP_SOURCES="${ADD_SERVER_BACKUP_SOURCES:-}"
+ADD_SERVER_BACKUP_EXCLSNS="${ADD_SERVER_BACKUP_EXCLSNS:-}"
 
 # create package list
 sudo dpkg --get-selections | sudo tee /root/pkglist.txt > /dev/null
@@ -35,7 +36,7 @@ echo "backup sources: ${BACKUP_SRCS[@]}"
 # BACKUP_SRCS+=(ubuntu-vg/pictures:/mnt/photos)
 # mapfile -t -O "${#BACKUP_SRCS[@]}" BACKUP_SRCS < <(find /mnt -mindepth 1 -maxdepth 1 ! -name 'photos')
 # BACKUP_SRCS+=($ADD_SERVER_BACKUP_SOURCES)
-BACKUP_EXCL=(/var/lib/docker /var/lib/containers /var/cache /var/tmp /mnt/backup)
+BACKUP_EXCL=(/var/lib/docker /var/lib/containers /var/cache /var/tmp /mnt/backup $ADD_SERVER_BACKUP_EXCLSNS)
 BORG_FLAGS="--verbose --stats --show-rc"
 BORG_PASS_FILE="${SCRIPT_DIR}/.borg-pass-server"
 HEALTHCHECK_URL="$HCHK_SERVER_BACKUP"
