@@ -36,7 +36,6 @@ set -euo pipefail
 set -o errtrace
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/CONFIG.sh"
 
 # === Parse arguments ===
 BACKUP_SRCS=()
@@ -44,12 +43,7 @@ BACKUP_DESTS=()
 BACKUP_EXCL=()
 BORG_PASS_FILE=""
 BORG_CHECK=""
-#LVM_SNAPSHOT_PV="/dev/mmcblk0p1"         # should be configured in CONFIG.sh: eMMC PV to use
-                                          # for snapshot allocation; must be added to the system
-                                          # VG. To ensure it is not consumed by extending and LV,
-                                          # we lock it after removing the snapshot.
-                                          # leave variable empty to let LVM choose
-LVM_SNAPSHOT_SIZE="10G"
+LVM_SNAPSHOT_SIZE="5G"
 LVM_SNAPSHOT_BASE="/mnt/borg-snapshots"   # where raw snapshots are mounted
 STAGING_ROOT="/tmp/borg-staging"          # mirror of real fs structure for borg
 
@@ -70,11 +64,6 @@ BORG_FLAGS="$@"
 declare -A LVM_SNAPSHOTS   # [vg/lv] -> raw snapshot mount point
 STAGING_MOUNTS=()          # all bind mounts under STAGING_ROOT, for cleanup
 
-# === Helper: check if LVM_SNAPSHOT_PV is set (in CONFIG.sh!) and is a known PV ===
-snapshot_pv_available() {
-  [[ -n "${LVM_SNAPSHOT_PV:-}" ]] && pvs "$LVM_SNAPSHOT_PV" > /dev/null 2>&1
-}
-
 # === Error handling ===
 cleanup() {
   unset BORG_PASSPHRASE
@@ -94,6 +83,7 @@ cleanup() {
   fi
 
   # Unmount and remove LVM snapshots
+  #if [[ ${#LVM_SNAPSHOTS[@]} -gt 0 ]]; then
   if [[ "${LVM_SNAPSHOTS[*]+var_is_set}" && "${#LVM_SNAPSHOTS[@]}" -gt 0 ]]; then
     echo "🧹 Removing LVM snapshots..."
     for lv_key in "${!LVM_SNAPSHOTS[@]}"; do
@@ -104,12 +94,6 @@ cleanup() {
       lvremove -f "/dev/${vg}/${snapshot_name}" 2>/dev/null || true
       echo "   removed snapshot for ${lv_key}"
     done
-  fi
-
-  # Safety net: ensure snapshot PV allocation is locked down on any exit
-  if snapshot_pv_available; then
-    echo "🔒 Ensuring snapshot PV (${LVM_SNAPSHOT_PV}) allocation is disabled..."
-    pvchange --allocatable n "$LVM_SNAPSHOT_PV" 2>/dev/null || true
   fi
 }
 trap cleanup EXIT
@@ -143,22 +127,12 @@ ensure_snapshot() {
   local snap_mount="${LVM_SNAPSHOT_BASE}/${lv}"
 
   if [[ -n "${LVM_SNAPSHOTS[$key]+_}" ]]; then
+    #echo "   (reusing existing snapshot for ${key})"
     return 0
   fi
 
-  if snapshot_pv_available; then
-    echo "🔓 Enabling allocation on snapshot PV (${LVM_SNAPSHOT_PV})..."
-    pvchange --allocatable y "$LVM_SNAPSHOT_PV"
-  fi
-
   echo "📸 Creating LVM snapshot of /dev/${vg}/${lv} (size: ${LVM_SNAPSHOT_SIZE})..."
-  lvcreate -L"${LVM_SNAPSHOT_SIZE}" -s -n "${snapshot_name}" "/dev/${vg}/${lv}" ${LVM_SNAPSHOT_PV:+"$LVM_SNAPSHOT_PV"}
-
-  if snapshot_pv_available; then
-    echo "🔒 Locking snapshot PV (${LVM_SNAPSHOT_PV}) allocation back down..."
-    pvchange --allocatable n "$LVM_SNAPSHOT_PV"
-  fi
-
+  lvcreate -L"${LVM_SNAPSHOT_SIZE}" -s -n "${snapshot_name}" "/dev/${vg}/${lv}"
   mkdir -p "${snap_mount}"
   mount -o ro "/dev/${vg}/${snapshot_name}" "${snap_mount}"
   echo "   ✅ Mounted read-only at ${snap_mount}"
@@ -253,6 +227,7 @@ for src in "${BACKUP_SRCS[@]}"; do
     done < <(awk '{print $2}' /proc/mounts | grep "^${src}/" | sort || true)
 
   fi
+
 
   # Record the relative staging path for borg (strip leading slash)
   rel="${src##*:}"   # for LVM specs, take the path part; for plain, use as-is
