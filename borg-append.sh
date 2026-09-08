@@ -28,6 +28,13 @@
 #      stored as home/, mnt/photos/, mnt/videos/ and restore correctly.
 #
 # Notes: Need to execute borg with sudo if the source files are owned by root.
+#        Snapshot names are derived from the LV name, so runs serialize on a lock
+#        file: only one may be active at a time. A snapshot left behind by an
+#        interrupted run (crash, power loss, kill) is detected and removed at the
+#        start of the next run, since otherwise lvcreate keeps failing with
+#        "Logical Volume ... already exists" until it is removed by hand.
+#        The passphrase reaches borg via BORG_PASSCOMMAND, not BORG_PASSPHRASE:
+#        sudo logs command-line environment assignments to syslog.
 #
 # Preparation: Initialize the borg repo and create the corresponding passkey file (chmod 600).
 # ==============================================================================
@@ -52,6 +59,9 @@ BORG_CHECK=""
 LVM_SNAPSHOT_SIZE="10G"
 LVM_SNAPSHOT_BASE="/mnt/borg-snapshots"   # where raw snapshots are mounted
 STAGING_ROOT="/tmp/borg-staging"          # mirror of real fs structure for borg
+LOCK_FILE="/run/lock/borg-append.lock"    # all runs share one snapshot name per LV,
+                                          # so only one run may be active at a time
+LOCK_WAIT="${BORG_APPEND_LOCK_WAIT:-3600}"  # seconds to wait for the lock before giving up
 
 while getopts "s:d:e:p:cz:" opt; do
   case "$opt" in
@@ -75,10 +85,68 @@ snapshot_pv_available() {
   [[ -n "${LVM_SNAPSHOT_PV:-}" ]] && pvs "$LVM_SNAPSHOT_PV" > /dev/null 2>&1
 }
 
+# === Helper: the snapshot LV name / device path we use for an origin LV ===
+# The naming rule lives here alone, so creating and removing can never drift.
+snapshot_name() { printf 'borg-snapshot-%s' "$1"; }
+snapshot_dev()  { printf '/dev/%s/%s' "$1" "$(snapshot_name "$2")"; }
+
+# === Helper: unmount everything backed by a device ===
+# Covers the raw mount under LVM_SNAPSHOT_BASE as well as any bind mounts of it
+# under STAGING_ROOT: a bind mount shares its source's major:minor, so mountinfo
+# lists them all. Deepest first, so nested mounts go before their parents.
+unmount_all_of_device() {
+  local dev="$1" dm mm mp
+  dm="$(readlink -f "$dev" 2>/dev/null)" || return 0
+  [[ -b "$dm" ]] || return 0   # inactive LV: nothing can be mounted from it
+  mm="$(lsblk -no MAJ:MIN "$dm" 2>/dev/null | tr -d '[:space:]')" || return 1
+  [[ -n "$mm" ]] || return 1
+
+  while IFS= read -r mp; do
+    [[ -z "$mp" ]] && continue
+    echo "   unmounting ${mp}..."
+    umount "$mp" || { echo "❌ Could not unmount ${mp}." >&2; return 1; }
+  done < <(awk -v m="$mm" '$3 == m {print $5}' /proc/self/mountinfo | tac)
+}
+
+# === Helper: make sure no borg snapshot of vg/lv exists ===
+# Used for both jobs: clearing a snapshot left behind by an interrupted run, and
+# tearing down our own on exit. Returns 0 if the snapshot is gone afterwards
+# (including when there was none), 1 if something is still in the way.
+drop_snapshot() {
+  local vg="$1" lv="$2"
+  local snap_dev origin=""
+  snap_dev="$(snapshot_dev "$vg" "$lv")"
+
+  lvs "$snap_dev" > /dev/null 2>&1 || return 0   # nothing there
+
+  # Never remove anything that is not in fact a snapshot of the expected origin
+  origin="$(lvs --noheadings -o origin "$snap_dev" 2>/dev/null | tr -d '[:space:]')" || origin=""
+  if [[ "$origin" != "$lv" ]]; then
+    echo "❌ ${snap_dev} is not a snapshot of ${lv} (origin: '${origin:-none}'); refusing to remove it." >&2
+    return 1
+  fi
+
+  unmount_all_of_device "$snap_dev" || return 1
+  lvremove -f "$snap_dev" || return 1
+  echo "   removed snapshot ${snap_dev}"
+}
+
+# === Serialize runs ===
+# Snapshot names are derived from the LV name alone, so two concurrent runs
+# (e.g. the container backups overrunning into the server backup) would fight
+# over the same snapshot. Take an exclusive lock for the whole run; it is
+# released automatically when the process exits, however it exits.
+# This has to happen before the EXIT trap is installed: a run that gives up
+# here must not fire cleanup() and pull the snapshot PV, staging root and
+# snapshots out from under the run that legitimately holds the lock.
+exec 9>"$LOCK_FILE"
+if ! flock -w "$LOCK_WAIT" 9; then
+  echo "❌ Another borg-append.sh run holds ${LOCK_FILE}; gave up after ${LOCK_WAIT}s." >&2
+  exit 1
+fi
+
 # === Error handling ===
 cleanup() {
-  unset BORG_PASSPHRASE
-
   # Unmount staging bind mounts in reverse order
   if [[ ${#STAGING_MOUNTS[@]} -gt 0 ]]; then
     echo "🧹 Unmounting staging bind mounts..."
@@ -93,16 +161,14 @@ cleanup() {
     rmdir --ignore-fail-on-non-empty "$STAGING_ROOT" 2>/dev/null || true
   fi
 
-  # Unmount and remove LVM snapshots
+  # Unmount and remove LVM snapshots. Guarded, because a failure here must not
+  # abort the trap before the PV is locked back down below.
   if [[ "${LVM_SNAPSHOTS[*]+var_is_set}" && "${#LVM_SNAPSHOTS[@]}" -gt 0 ]]; then
     echo "🧹 Removing LVM snapshots..."
     for lv_key in "${!LVM_SNAPSHOTS[@]}"; do
-      snap_mount="${LVM_SNAPSHOTS[$lv_key]}"
-      vg="${lv_key%%/*}"
-      snapshot_name="borg-snapshot-${lv_key##*/}"
-      umount "$snap_mount" 2>/dev/null || true
-      lvremove -f "/dev/${vg}/${snapshot_name}" 2>/dev/null || true
-      echo "   removed snapshot for ${lv_key}"
+      if ! drop_snapshot "${lv_key%%/*}" "${lv_key##*/}"; then
+        echo "   ⚠️  could not remove snapshot for ${lv_key} — next run will clean it up"
+      fi
     done
   fi
 
@@ -139,12 +205,25 @@ ensure_snapshot() {
   local vg="$1"
   local lv="$2"
   local key="${vg}/${lv}"
-  local snapshot_name="borg-snapshot-${lv}"
+  local snap_dev
+  snap_dev="$(snapshot_dev "$vg" "$lv")"
   local snap_mount="${LVM_SNAPSHOT_BASE}/${lv}"
 
   if [[ -n "${LVM_SNAPSHOTS[$key]+_}" ]]; then
     return 0
   fi
+
+  # A snapshot left behind by an interrupted run (crash, power loss, kill) makes
+  # lvcreate fail on every later run until it is removed. We hold the run lock,
+  # so anything still lying around here cannot belong to a live run.
+  if lvs "$snap_dev" > /dev/null 2>&1; then
+    echo "⚠️  Stale snapshot ${snap_dev} found — leftover from an interrupted run."
+    drop_snapshot "$vg" "$lv"   # unguarded: the ERR trap aborts if it won't go
+  fi
+
+  # Register before creating, so cleanup() also tears down a half-built
+  # snapshot when lvcreate or the mount below fails
+  LVM_SNAPSHOTS["$key"]="$snap_mount"
 
   if snapshot_pv_available; then
     echo "🔓 Enabling allocation on snapshot PV (${LVM_SNAPSHOT_PV})..."
@@ -152,7 +231,7 @@ ensure_snapshot() {
   fi
 
   echo "📸 Creating LVM snapshot of /dev/${vg}/${lv} (size: ${LVM_SNAPSHOT_SIZE})..."
-  lvcreate -L"${LVM_SNAPSHOT_SIZE}" -s -n "${snapshot_name}" "/dev/${vg}/${lv}" ${LVM_SNAPSHOT_PV:+"$LVM_SNAPSHOT_PV"}
+  lvcreate -L"${LVM_SNAPSHOT_SIZE}" -s -n "$(snapshot_name "$lv")" "/dev/${vg}/${lv}" ${LVM_SNAPSHOT_PV:+"$LVM_SNAPSHOT_PV"}
 
   if snapshot_pv_available; then
     echo "🔒 Locking snapshot PV (${LVM_SNAPSHOT_PV}) allocation back down..."
@@ -160,10 +239,8 @@ ensure_snapshot() {
   fi
 
   mkdir -p "${snap_mount}"
-  mount -o ro "/dev/${vg}/${snapshot_name}" "${snap_mount}"
+  mount -o ro "$snap_dev" "${snap_mount}"
   echo "   ✅ Mounted read-only at ${snap_mount}"
-
-  LVM_SNAPSHOTS["$key"]="$snap_mount"
 
   # Auto-exclude the raw snapshot mount point so it isn't picked up
   # if a plain source covers its parent directory
@@ -199,7 +276,17 @@ if [[ ! -f "$BORG_PASS_FILE" ]]; then
   echo "❌ Couldn't find passfile: '${BORG_PASS_FILE}'" >&2
   exit 1
 fi
-read -r BORG_PASSPHRASE < "$BORG_PASS_FILE"
+if [[ ! -s "$BORG_PASS_FILE" ]]; then
+  echo "❌ Passfile is empty: '${BORG_PASS_FILE}'" >&2
+  exit 1
+fi
+
+# Hand the passphrase to borg with BORG_PASSCOMMAND instead of
+# BORG_PASSPHRASE="$(cat passfile)": sudo writes the environment assignments it
+# is handed to syslog, so the latter puts the passphrase in the journal in
+# plaintext for anyone who can read it. This way only the path of the (0600)
+# passfile is logged. `head -n 1` matches how the passphrase was read before.
+printf -v BORG_PASSCMD 'head -n 1 -- %q' "$BORG_PASS_FILE"
 
 # Validate sources
 for src in "${BACKUP_SRCS[@]}"; do
@@ -219,7 +306,7 @@ done
 
 # Validate destinations
 for dest in "${BACKUP_DESTS[@]}"; do
-  if ! sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg info "$dest" > /dev/null; then
+  if ! sudo BORG_PASSCOMMAND="$BORG_PASSCMD" borg info "$dest" > /dev/null; then
     echo "❌ '$dest' is not a valid or accessible Borg repository." >&2
     exit 1
   fi
@@ -280,7 +367,7 @@ for dest in "${BACKUP_DESTS[@]}"; do
   echo "➡️  Append to repo: ${dest}"
   if [[ "$BORG_CHECK" == "yes" ]]; then
     echo "borg check... ($(date))"
-    sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg check --verify-data "$dest"
+    sudo BORG_PASSCOMMAND="$BORG_PASSCMD" borg check --verify-data "$dest"
   else
     echo "skip borg check."
   fi
@@ -299,7 +386,7 @@ for dest in "${BACKUP_DESTS[@]}"; do
   # so their contents are visible to borg without needing --one-file-system.
   (
     cd "$STAGING_ROOT"
-    sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg create \
+    sudo BORG_PASSCOMMAND="$BORG_PASSCMD" borg create \
       -v --stats --progress --show-rc \
       "$dest"::"{now}" \
       "${STAGING_SRCS[@]}" \
@@ -308,10 +395,10 @@ for dest in "${BACKUP_DESTS[@]}"; do
   )
 
   echo "borg prune... ($(date))"
-  sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg prune \
+  sudo BORG_PASSCOMMAND="$BORG_PASSCMD" borg prune \
     --keep-daily=7 --keep-weekly=4 --keep-monthly=12 "$dest"
   echo "borg compact... ($(date))"
-  sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg compact "$dest"
+  sudo BORG_PASSCOMMAND="$BORG_PASSCMD" borg compact "$dest"
 done
 
 echo "✅ Successfully appended backups to borg repos."
