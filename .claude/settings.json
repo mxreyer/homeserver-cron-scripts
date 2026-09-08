@@ -1,0 +1,18 @@
+{
+  "sandbox": {
+    "enabled": true,
+    "filesystem": {
+      "denyRead": [".borg-pass*"],
+      "denyWrite": [".borg-pass*"]
+    }
+  },
+  "permissions": {
+    "defaultMode": "auto",
+    "deny": [
+      "Read(.borg-pass*)",
+      "Edit(.borg-pass*)",
+      "Bash(cat .borg-pass*)",
+      "Bash(*.borg-pass*)"
+    ]
+  }
+}
