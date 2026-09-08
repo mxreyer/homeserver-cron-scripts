@@ -300,6 +300,7 @@ for dest in "${BACKUP_DESTS[@]}"; do
   (
     cd "$STAGING_ROOT"
     sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg create \
+      -v --stats --progress --show-rc \
       "$dest"::"{now}" \
       "${STAGING_SRCS[@]}" \
       "${exclargs[@]+"${exclargs[@]}"}" \
