@@ -5,6 +5,9 @@
 #              my docker containers.
 #
 # Preparation: Initialize password files .borg-pass-XXX (chmod 600)
+#
+# Notes: The passphrase reaches borg via BORG_PASSCOMMAND, not BORG_PASSPHRASE:
+#        sudo logs command-line environment assignments to syslog.
 # ==============================================================================
 
 set -euo pipefail # exit on error, undef vars, or failed pipeline
@@ -30,11 +33,6 @@ while getopts "m:a:d:r:x:" opt; do
 done
 
 # === traps and error handling === #
-
-on_exit() {
-  unset BORG_PASSPHRASE # for security, unset passphrase
-}
-trap on_exit EXIT
 
 on_error() {
   echo "❌ Performing borg action \"${BORG_ACTION}\" failed."
@@ -96,11 +94,21 @@ for repo in $BORG_REPOS; do
   echo "📁 repopath: $repopath"
 
   BORG_PASS_FILE=${SCRIPT_DIR}/.borg-pass-${repo}
-  read -r BORG_PASSPHRASE < "$BORG_PASS_FILE"
+  if [[ ! -s "$BORG_PASS_FILE" ]]; then
+    echo "❌ Missing or empty passfile: '${BORG_PASS_FILE}'" >&2
+    exit 1
+  fi
+
+  # Hand the passphrase to borg with BORG_PASSCOMMAND instead of
+  # BORG_PASSPHRASE="$(cat passfile)": sudo writes the environment assignments
+  # it is handed to syslog, so the latter puts the passphrase in the journal in
+  # plaintext for anyone who can read it. This way only the path of the (0600)
+  # passfile is logged. `head -n 1` matches how the passphrase was read before.
+  printf -v BORG_PASSCMD 'head -n 1 -- %q' "$BORG_PASS_FILE"
 
   if [[ $BORG_ARCHIVE == latest ]] && [[ ! $BORG_ACTION =~ (init|list|umount|unmount|delete) ]]; then
     echo "ℹ️  No archive name provided. 🔎 Find latest archive..."
-    BORG_ARCHIVE=$(sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg list --short --last 1 "$repopath")
+    BORG_ARCHIVE=$(sudo BORG_PASSCOMMAND="$BORG_PASSCMD" borg list --short --last 1 "$repopath")
     if [[ -z "$BORG_ARCHIVE" ]]; then
       echo "❌ No archives found in $repopath"
       exit 1
@@ -133,45 +141,49 @@ for repo in $BORG_REPOS; do
       fi
       echo "archive: " "$repopath"::"$BORG_ARCHIVE"
       echo "mountpoint: ${BORG_MOUNTPOINT}"
-      sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg mount "$repopath"::"$BORG_ARCHIVE" ${BORG_MOUNTPOINT}
+      sudo BORG_PASSCOMMAND="$BORG_PASSCMD" borg mount "$repopath"::"$BORG_ARCHIVE" ${BORG_MOUNTPOINT}
       ;;
 
     "unmount"|"umount") 
       echo "unmount..."
-      sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg umount ${BORG_MOUNTPOINT}
+      sudo BORG_PASSCOMMAND="$BORG_PASSCMD" borg umount ${BORG_MOUNTPOINT}
       rmdir "$BORG_MOUNTPOINT"
       ;;
 
     "list-archive") 
       echo "list archive..."
-      sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg list "$repopath"::"$BORG_ARCHIVE" --format="{mode} {user} {group} {path}{NL}"
+      sudo BORG_PASSCOMMAND="$BORG_PASSCMD" borg list "$repopath"::"$BORG_ARCHIVE" --format="{mode} {user} {group} {path}{NL}"
       ;;
 
     "list") 
       echo "list..."
-      sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg list --format "{archive} {time} {NL}" "$repopath"
+      sudo BORG_PASSCOMMAND="$BORG_PASSCMD" borg list --format "{archive} {time} {NL}" "$repopath"
       ;;
 
     "init") 
       echo "init..."
-      BORG_PASSPHRASE="$BORG_PASSPHRASE" borg init --encryption=repokey "$repopath"
+      # init needs BORG_NEW_PASSPHRASE: it picks the passphrase via
+      # Passphrase.new(), which reads BORG_NEW_PASSPHRASE and BORG_PASSPHRASE
+      # but not BORG_PASSCOMMAND, and would otherwise prompt. There is no sudo
+      # on this line, so the assignment is not written to the journal.
+      BORG_NEW_PASSPHRASE="$(head -n 1 -- "$BORG_PASS_FILE")" borg init --encryption=repokey "$repopath"
       borg key export "$repopath"
       ;;
     
     "delete") 
       echo "delete..."
-      sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg delete "$repopath"::"$BORG_ARCHIVE"
+      sudo BORG_PASSCOMMAND="$BORG_PASSCMD" borg delete "$repopath"::"$BORG_ARCHIVE"
       ;;
 
     "extract") 
       echo "extract..."
-      (cd /; sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg extract \
+      (cd /; sudo BORG_PASSCOMMAND="$BORG_PASSCMD" borg extract \
         "$repopath"::"$BORG_ARCHIVE")
       ;;
 
     "extract-exclude-sidecars") 
       echo "extract (without tailscale/caddy sidecar volumes)..."
-      (cd /; sudo BORG_PASSPHRASE="$BORG_PASSPHRASE" borg extract \
+      (cd /; sudo BORG_PASSCOMMAND="$BORG_PASSCMD" borg extract \
         --exclude='*tailscale*' --exclude='*caddy*' \
         "$repopath"::"$BORG_ARCHIVE")
       ;; 
