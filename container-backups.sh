@@ -150,58 +150,58 @@ trap on_exit EXIT
   2>&1 \
   | tee -a ${LOGS_DIR}/backup-mealie.log
 
-# ollama
-"$BACKUP_SCRIPT" \
-  -p ${SCRIPT_DIR}/.borg-pass-ollama \
-  -u "$HCHK_OLLAMA" \
-  -y ${DOCKER_COMPOSE_DIR}/ollama/compose.yaml \
-  -s $VG/$LV:${DOCKER_BINDS_DIR}/ollama \
-  -s $VG/$LV:${DOCKER_VOL_LOC}/ollama_ollama_data/ \
-  -s $VG/$LV:${DOCKER_VOL_LOC}/ollama_ollama_webui_data/ \
-  -d "${BACKUP_LOC}/ollama/borg" \
-  -d "${BACKUP_SSH}/ollama/borg" \
-  2>&1 \
-  | tee -a ${LOGS_DIR}/backup-ollama.log
+## ollama
+#"$BACKUP_SCRIPT" \
+#  -p ${SCRIPT_DIR}/.borg-pass-ollama \
+#  -u "$HCHK_OLLAMA" \
+#  -y ${DOCKER_COMPOSE_DIR}/ollama/compose.yaml \
+#  -s $VG/$LV:${DOCKER_BINDS_DIR}/ollama \
+#  -s $VG/$LV:${DOCKER_VOL_LOC}/ollama_ollama_data/ \
+#  -s $VG/$LV:${DOCKER_VOL_LOC}/ollama_ollama_webui_data/ \
+#  -d "${BACKUP_LOC}/ollama/borg" \
+#  -d "${BACKUP_SSH}/ollama/borg" \
+#  2>&1 \
+#  | tee -a ${LOGS_DIR}/backup-ollama.log
 
-# searxng
-"$BACKUP_SCRIPT" \
-  -p ${SCRIPT_DIR}/.borg-pass-searxng \
-  -u "$HCHK_SEARXNG" \
-  -y ${DOCKER_COMPOSE_DIR}/searxng/compose.yaml \
-  -s $VG/$LV:${DOCKER_BINDS_DIR}/searxng \
-  -s $VG/$LV:${DOCKER_VOL_LOC}/searxng_searxng-data \
-  -s $VG/$LV:${DOCKER_VOL_LOC}/searxng_valkey-data2 \
-  -d "${BACKUP_LOC}/searxng/borg" \
-  -d "${BACKUP_SSH}/searxng/borg" \
-  2>&1 \
-  | tee -a ${LOGS_DIR}/backup-searxng.log
+## searxng
+#"$BACKUP_SCRIPT" \
+#  -p ${SCRIPT_DIR}/.borg-pass-searxng \
+#  -u "$HCHK_SEARXNG" \
+#  -y ${DOCKER_COMPOSE_DIR}/searxng/compose.yaml \
+#  -s $VG/$LV:${DOCKER_BINDS_DIR}/searxng \
+#  -s $VG/$LV:${DOCKER_VOL_LOC}/searxng_searxng-data \
+#  -s $VG/$LV:${DOCKER_VOL_LOC}/searxng_valkey-data2 \
+#  -d "${BACKUP_LOC}/searxng/borg" \
+#  -d "${BACKUP_SSH}/searxng/borg" \
+#  2>&1 \
+#  | tee -a ${LOGS_DIR}/backup-searxng.log
 
-# stirling
-"$BACKUP_SCRIPT" \
-  -p ${SCRIPT_DIR}/.borg-pass-stirling \
-  -u "$HCHK_STIRLING" \
-  -y ${DOCKER_COMPOSE_DIR}/stirling/compose.yaml \
-  -s $VG/$LV:${DOCKER_BINDS_DIR}/stirling \
-  -s $VG/$LV:${DOCKER_VOL_LOC}/stirling_caddy_certs \
-  -s $VG/$LV:${DOCKER_VOL_LOC}/stirling_caddy_config \
-  -s $VG/$LV:${DOCKER_VOL_LOC}/stirling_caddy_data \
-  -s $VG/$LV:${DOCKER_VOL_LOC}/stirling_tailscale_sock \
-  -d "${BACKUP_LOC}/stirling/borg" \
-  -d "${BACKUP_SSH}/stirling/borg" \
-  2>&1 \
-  | tee -a ${LOGS_DIR}/backup-stirling.log
+## stirling
+#"$BACKUP_SCRIPT" \
+#  -p ${SCRIPT_DIR}/.borg-pass-stirling \
+#  -u "$HCHK_STIRLING" \
+#  -y ${DOCKER_COMPOSE_DIR}/stirling/compose.yaml \
+#  -s $VG/$LV:${DOCKER_BINDS_DIR}/stirling \
+#  -s $VG/$LV:${DOCKER_VOL_LOC}/stirling_caddy_certs \
+#  -s $VG/$LV:${DOCKER_VOL_LOC}/stirling_caddy_config \
+#  -s $VG/$LV:${DOCKER_VOL_LOC}/stirling_caddy_data \
+#  -s $VG/$LV:${DOCKER_VOL_LOC}/stirling_tailscale_sock \
+#  -d "${BACKUP_LOC}/stirling/borg" \
+#  -d "${BACKUP_SSH}/stirling/borg" \
+#  2>&1 \
+#  | tee -a ${LOGS_DIR}/backup-stirling.log
 
-# firefly
-"$BACKUP_SCRIPT" \
-  -p ${SCRIPT_DIR}/.borg-pass-firefly \
-  -u "$HCHK_FIREFLY" \
-  -y ${DOCKER_COMPOSE_DIR}/firefly/compose.yaml \
-  -s $VG/$LV:${DOCKER_VOL_LOC}/firefly_firefly_iii_upload \
-  -s $VG/$LV:${DOCKER_VOL_LOC}/firefly_firefly_iii_db \
-  -d "${BACKUP_LOC}/firefly/borg" \
-  -d "${BACKUP_SSH}/firefly/borg" \
-  2>&1 \
-  | tee -a ${LOGS_DIR}/backup-firefly.log
+## firefly
+#"$BACKUP_SCRIPT" \
+#  -p ${SCRIPT_DIR}/.borg-pass-firefly \
+#  -u "$HCHK_FIREFLY" \
+#  -y ${DOCKER_COMPOSE_DIR}/firefly/compose.yaml \
+#  -s $VG/$LV:${DOCKER_VOL_LOC}/firefly_firefly_iii_upload \
+#  -s $VG/$LV:${DOCKER_VOL_LOC}/firefly_firefly_iii_db \
+#  -d "${BACKUP_LOC}/firefly/borg" \
+#  -d "${BACKUP_SSH}/firefly/borg" \
+#  2>&1 \
+#  | tee -a ${LOGS_DIR}/backup-firefly.log
 
 # actual
 "$BACKUP_SCRIPT" \
