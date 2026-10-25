@@ -388,6 +388,7 @@ for dest in "${BACKUP_DESTS[@]}"; do
     cd "$STAGING_ROOT"
     sudo BORG_PASSCOMMAND="$BORG_PASSCMD" borg create \
       -v --stats --progress --show-rc \
+      --list --filter=CE \
       "$dest"::"{now}" \
       "${STAGING_SRCS[@]}" \
       "${exclargs[@]+"${exclargs[@]}"}" \
