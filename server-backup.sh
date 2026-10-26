@@ -19,8 +19,14 @@ source "${SCRIPT_DIR}/CONFIG.sh"
 ADD_SERVER_BACKUP_SOURCES="${ADD_SERVER_BACKUP_SOURCES:-}"
 ADD_SERVER_BACKUP_EXCLSNS="${ADD_SERVER_BACKUP_EXCLSNS:-}"
 
-# create package list
-sudo dpkg --get-selections | sudo tee /root/pkglist.txt > /dev/null
+# create package list (dpkg on Debian/Ubuntu, rpm on Fedora/RHEL)
+if command -v dpkg > /dev/null; then
+  sudo dpkg --get-selections | sudo tee /root/pkglist.txt > /dev/null
+elif command -v rpm > /dev/null; then
+  rpm -qa --queryformat '%{NAME}\n' | sort -u | sudo tee /root/pkglist.txt > /dev/null
+else
+  echo "⚠️ Neither dpkg nor rpm found, skipping package list."
+fi
 
 BACKUP_DESTS=("${BACKUP_LOC}/server/borg" "${BACKUP_SSH}/server/borg")
 if [[ -z $VG ]] || [[ -z $LV ]]; then
