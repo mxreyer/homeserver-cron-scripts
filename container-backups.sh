@@ -69,14 +69,19 @@ trap on_exit EXIT
   -i "${SCRIPT_DIR}/trigger-backup-scripts/paperless-trigger-backup.sh" \
   -y ${DOCKER_COMPOSE_DIR}/paperless/compose.yaml \
   -s $VG/$LV:${DOCKER_BINDS_DIR}/paperless/ \
+  -s $VG/$LV:${DOCKER_BINDS_DIR}/paperless-gpt/ \
   -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_caddy_certs \
   -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_caddy_config \
   -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_caddy_data \
+  -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_caddy_certs_gpt \
+  -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_caddy_config_gpt \
+  -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_caddy_data_gpt \
   -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_data \
   -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_media \
   -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_pgdata \
   -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_redisdata \
   -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_tailscale_sock \
+  -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_tailscale_sock_gpt \
   -d "${BACKUP_LOC}/paperless/borg" \
   -d "${BACKUP_SSH}/paperless/borg" \
   2>&1 \
