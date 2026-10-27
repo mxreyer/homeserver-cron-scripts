@@ -5,7 +5,8 @@ DOCKER_VOL_LOC=""
 BACKUP_LOC=""
 BACKUP_SSH=""
 TS_DOMAIN=""
-WEB_SERVICES=""
+WEB_SERVICES="" # space-separated; also selects the services that
+                # container-backups.sh backs up
 ADD_SERVER_BACKUP_SOURCES=""
 ADD_SERVER_BACKUP_EXCLSNS="" # e.g. log files that often change during backup,
                              # causing BORG error messages (when snapshotted
