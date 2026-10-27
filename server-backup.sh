@@ -42,7 +42,7 @@ echo "backup sources: ${BACKUP_SRCS[@]}"
 # BACKUP_SRCS+=(ubuntu-vg/pictures:/mnt/photos)
 # mapfile -t -O "${#BACKUP_SRCS[@]}" BACKUP_SRCS < <(find /mnt -mindepth 1 -maxdepth 1 ! -name 'photos')
 # BACKUP_SRCS+=($ADD_SERVER_BACKUP_SOURCES)
-BACKUP_EXCL=(/var/lib/docker /var/lib/containers /var/lib/containerd/ /var/lib/rancher/k3s/agent/ /var/lib/flatpak/ /var/lib/systemd/ /var/cache /var/tmp /mnt/backup $ADD_SERVER_BACKUP_EXCLSNS)
+BACKUP_EXCL=(/var/lib/docker /var/lib/containers /var/lib/containerd/ /var/lib/rancher/k3s/agent/ /var/lib/flatpak/ /var/lib/systemd/ /var/lib/kubelet/ /var/cache /var/tmp /mnt/backup $ADD_SERVER_BACKUP_EXCLSNS)
 BORG_FLAGS="--verbose --stats --show-rc"
 BORG_PASS_FILE="${SCRIPT_DIR}/.borg-pass-server"
 HEALTHCHECK_URL="$HCHK_SERVER_BACKUP"
