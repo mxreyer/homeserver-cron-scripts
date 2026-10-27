@@ -1,7 +1,7 @@
 #!/bin/bash
 # ==============================================================================
 # Script Name: borg-action.sh
-# Description: mount, unmount, initialize, list, or extract borg repos for all
+# Description: mount, unmount, initialize, list, compact, or extract borg repos for all
 #              my docker containers.
 #
 # Preparation: Initialize password files .borg-pass-XXX (chmod 600)
@@ -106,7 +106,7 @@ for repo in $BORG_REPOS; do
   # passfile is logged. `head -n 1` matches how the passphrase was read before.
   printf -v BORG_PASSCMD 'head -n 1 -- %q' "$BORG_PASS_FILE"
 
-  if [[ $BORG_ARCHIVE == latest ]] && [[ ! $BORG_ACTION =~ (init|list|umount|unmount|delete) ]]; then
+  if [[ $BORG_ARCHIVE == latest ]] && [[ ! $BORG_ACTION =~ (init|list|compact|umount|unmount|delete) ]]; then
     echo "ℹ️  No archive name provided. 🔎 Find latest archive..."
     BORG_ARCHIVE=$(sudo BORG_PASSCOMMAND="$BORG_PASSCMD" borg list --short --last 1 "$repopath")
     if [[ -z "$BORG_ARCHIVE" ]]; then
@@ -158,6 +158,11 @@ for repo in $BORG_REPOS; do
     "list") 
       echo "list..."
       sudo BORG_PASSCOMMAND="$BORG_PASSCMD" borg list --format "{archive} {time} {NL}" "$repopath"
+      ;;
+
+    "compact") 
+      echo "compact..."
+      sudo BORG_PASSCOMMAND="$BORG_PASSCMD" borg compact "$repopath"
       ;;
 
     "init") 
