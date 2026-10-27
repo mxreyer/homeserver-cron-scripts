@@ -51,7 +51,7 @@ Add to crontab:
 
 ### Backup & Restore
 - **server-backup.sh** — Back up server data via Borg (excludes Docker)
-- **container-backups.sh** — Back up Docker Compose projects (binds, volumes, databases)
+- **container-backups.sh** — Back up Docker Compose projects (binds, volumes, databases) listed in `WEB_SERVICES`
 - **borg-action.sh** — Initialize and manage Borg repositories
 - **borg-append.sh** — Append Docker data to existing Borg backups
 
