@@ -255,6 +255,25 @@ if service_enabled actual; then
     | tee -a ${LOGS_DIR}/backup-actual.log
 fi
 
+# local-ai
+if service_enabled local-ai; then
+  "$BACKUP_SCRIPT" \
+    -p ${SCRIPT_DIR}/.borg-pass-local-ai \
+    -u "$HCHK_LOCALAI" \
+    -y ${DOCKER_COMPOSE_DIR}/local-ai/compose.yaml \
+    -s ${SRC_PREFIX}${DOCKER_BINDS_DIR}/local-ai/ \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/local-ai_tailscale_sock \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/local-ai_caddy_certs \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/local-ai_caddy_config \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/local-ai_caddy_data \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/local-ai_ollama_data \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/local-ai_open_webui_data \
+    -d "${BACKUP_LOC}/local-ai/borg" \
+    -d "${BACKUP_SSH}/local-ai/borg" \
+    2>&1 \
+    | tee -a ${LOGS_DIR}/backup-local-ai.log
+fi
+
 # template
 #if service_enabled XXX; then
 #  "$BACKUP_SCRIPT" \
