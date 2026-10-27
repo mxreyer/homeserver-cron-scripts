@@ -11,6 +11,9 @@
 #     - Set up the scripts in trigger-backup-scripts (API keys etc)
 #
 # Notes:
+#     - Only services listed in WEB_SERVICES (CONFIG.sh, space-separated) are
+#       backed up. Listed names without a backup block below (e.g. cloud) are
+#       skipped.
 #     - For some services, simply all bind mounts and volumes are archived
 #       (after stopping containers). In all cases, we should be able to quickly
 #       restore from these backups. For some other services (where available),
@@ -60,172 +63,198 @@ trap on_exit EXIT
 
 # === Script logic === #
 
+# true if $1 is listed in the space-separated WEB_SERVICES
+service_enabled() {
+  [[ " ${WEB_SERVICES:-} " == *" $1 "* ]]
+}
+
 # paperless
 # On top of backing up bind mounts and volumes, create full docker-agnostic
 # backup using "document exporter", see paperless-trigger-backup.sh
-"$BACKUP_SCRIPT" \
-  -p ${SCRIPT_DIR}/.borg-pass-paperless \
-  -u "$HCHK_PAPERLESS" \
-  -i "${SCRIPT_DIR}/trigger-backup-scripts/paperless-trigger-backup.sh" \
-  -y ${DOCKER_COMPOSE_DIR}/paperless/compose.yaml \
-  -s $VG/$LV:${DOCKER_BINDS_DIR}/paperless/ \
-  -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_caddy_certs \
-  -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_caddy_config \
-  -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_caddy_data \
-  -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_data \
-  -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_media \
-  -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_pgdata \
-  -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_redisdata \
-  -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_tailscale_sock \
-  -d "${BACKUP_LOC}/paperless/borg" \
-  -d "${BACKUP_SSH}/paperless/borg" \
-  2>&1 \
-  | tee -a ${LOGS_DIR}/backup-paperless.log
-#-d "${BACKUP_SSH}/paperless/borg" \
+if service_enabled paperless; then
+  "$BACKUP_SCRIPT" \
+    -p ${SCRIPT_DIR}/.borg-pass-paperless \
+    -u "$HCHK_PAPERLESS" \
+    -i "${SCRIPT_DIR}/trigger-backup-scripts/paperless-trigger-backup.sh" \
+    -y ${DOCKER_COMPOSE_DIR}/paperless/compose.yaml \
+    -s $VG/$LV:${DOCKER_BINDS_DIR}/paperless/ \
+    -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_caddy_certs \
+    -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_caddy_config \
+    -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_caddy_data \
+    -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_data \
+    -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_media \
+    -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_pgdata \
+    -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_redisdata \
+    -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_tailscale_sock \
+    -d "${BACKUP_LOC}/paperless/borg" \
+    -d "${BACKUP_SSH}/paperless/borg" \
+    2>&1 \
+    | tee -a ${LOGS_DIR}/backup-paperless.log
+fi
 
 # immich
 # On top of backing up bind mounts and volumes, the postgres database is
 # explicitly dumped for safety, see immich-trigger-backup.sh
-"$BACKUP_SCRIPT" \
-  -p ${SCRIPT_DIR}/.borg-pass-immich \
-  -u "$HCHK_IMMICH" \
-  -i "${SCRIPT_DIR}/trigger-backup-scripts/immich-trigger-backup.sh" \
-  -y ${DOCKER_COMPOSE_DIR}/immich/compose.yaml \
-  -C immich-server -C immich-machine-learning -C redis \
-  -s $VG/$LV:${DOCKER_BINDS_DIR}/immich \
-  -s $VG/$LV:${DOCKER_VOL_LOC}/immich_model-cache \
-  -e ${DOCKER_BINDS_DIR}/immich/library/thumbs/ \
-  -e ${DOCKER_BINDS_DIR}/immich/library/encoded-video/ \
-  -d "${BACKUP_LOC}/immich/borg" \
-  -d "${BACKUP_SSH}/immich/borg" \
-  2>&1 \
-  | tee -a ${LOGS_DIR}/backup-immich.log
+if service_enabled immich; then
+  "$BACKUP_SCRIPT" \
+    -p ${SCRIPT_DIR}/.borg-pass-immich \
+    -u "$HCHK_IMMICH" \
+    -i "${SCRIPT_DIR}/trigger-backup-scripts/immich-trigger-backup.sh" \
+    -y ${DOCKER_COMPOSE_DIR}/immich/compose.yaml \
+    -C immich-server -C immich-machine-learning -C redis \
+    -s $VG/$LV:${DOCKER_BINDS_DIR}/immich \
+    -s $VG/$LV:${DOCKER_VOL_LOC}/immich_model-cache \
+    -e ${DOCKER_BINDS_DIR}/immich/library/thumbs/ \
+    -e ${DOCKER_BINDS_DIR}/immich/library/encoded-video/ \
+    -d "${BACKUP_LOC}/immich/borg" \
+    -d "${BACKUP_SSH}/immich/borg" \
+    2>&1 \
+    | tee -a ${LOGS_DIR}/backup-immich.log
+fi
 
 # beszel
 # On top of backing up bind mounts and volumes, create full docker-agnostic
 # backup using beszel API, see beszel-trigger-backup.sh
-"$BACKUP_SCRIPT" \
-  -p ${SCRIPT_DIR}/.borg-pass-beszel \
-  -u "$HCHK_BESZEL" \
-  -i "${SCRIPT_DIR}/trigger-backup-scripts/beszel-trigger-backup.sh" \
-  -y ${DOCKER_COMPOSE_DIR}/beszel/compose.yaml \
-  -s $VG/$LV:${DOCKER_BINDS_DIR}/beszel \
-  -d "${BACKUP_LOC}/beszel/borg" \
-  -d "${BACKUP_SSH}/beszel/borg" \
-  2>&1 \
-  | tee -a ${LOGS_DIR}/backup-beszel.log
+if service_enabled beszel; then
+  "$BACKUP_SCRIPT" \
+    -p ${SCRIPT_DIR}/.borg-pass-beszel \
+    -u "$HCHK_BESZEL" \
+    -i "${SCRIPT_DIR}/trigger-backup-scripts/beszel-trigger-backup.sh" \
+    -y ${DOCKER_COMPOSE_DIR}/beszel/compose.yaml \
+    -s $VG/$LV:${DOCKER_BINDS_DIR}/beszel \
+    -d "${BACKUP_LOC}/beszel/borg" \
+    -d "${BACKUP_SSH}/beszel/borg" \
+    2>&1 \
+    | tee -a ${LOGS_DIR}/backup-beszel.log
+fi
 
-## healthchecks
-## On top of backing up bind mounts and volumes, create full docker-agnostic
-## backup using database dump, see healthchecks-trigger-backup.sh
-#"$BACKUP_SCRIPT" \
-#  -p ${SCRIPT_DIR}/.borg-pass-healthchecks \
-#  -u "$HCHK_HEALTHCHECKS" \
-#  -i "${SCRIPT_DIR}/trigger-backup-scripts/healthchecks-trigger-backup.sh" \
-#  -y ${DOCKER_COMPOSE_DIR}/healthchecks/compose.yaml \
-#  -C web \
-#  -s $VG/$LV:${DOCKER_BINDS_DIR}/healthchecks \
-#  -s $VG/$LV:${DOCKER_VOL_LOC}/healthchecks_caddy_certs \
-#  -s $VG/$LV:${DOCKER_VOL_LOC}/healthchecks_caddy_config \
-#  -s $VG/$LV:${DOCKER_VOL_LOC}/healthchecks_caddy_data \
-#  -s $VG/$LV:${DOCKER_VOL_LOC}/healthchecks_db_data \
-#  -s $VG/$LV:${DOCKER_VOL_LOC}/healthchecks_tailscale_sock \
-#  -d "${BACKUP_LOC}/healthchecks/borg" \
-#  -d "${BACKUP_SSH}/healthchecks/borg" \
-#  2>&1 \
-#  | tee -a ${LOGS_DIR}/backup-healthchecks.log
+# healthchecks
+# On top of backing up bind mounts and volumes, create full docker-agnostic
+# backup using database dump, see healthchecks-trigger-backup.sh
+if service_enabled healthchecks; then
+  "$BACKUP_SCRIPT" \
+    -p ${SCRIPT_DIR}/.borg-pass-healthchecks \
+    -u "$HCHK_HEALTHCHECKS" \
+    -i "${SCRIPT_DIR}/trigger-backup-scripts/healthchecks-trigger-backup.sh" \
+    -y ${DOCKER_COMPOSE_DIR}/healthchecks/compose.yaml \
+    -C web \
+    -s $VG/$LV:${DOCKER_BINDS_DIR}/healthchecks \
+    -s $VG/$LV:${DOCKER_VOL_LOC}/healthchecks_caddy_certs \
+    -s $VG/$LV:${DOCKER_VOL_LOC}/healthchecks_caddy_config \
+    -s $VG/$LV:${DOCKER_VOL_LOC}/healthchecks_caddy_data \
+    -s $VG/$LV:${DOCKER_VOL_LOC}/healthchecks_db_data \
+    -s $VG/$LV:${DOCKER_VOL_LOC}/healthchecks_tailscale_sock \
+    -d "${BACKUP_LOC}/healthchecks/borg" \
+    -d "${BACKUP_SSH}/healthchecks/borg" \
+    2>&1 \
+    | tee -a ${LOGS_DIR}/backup-healthchecks.log
+fi
 
 # mealie
 # On top of backing up bind mounts and volumes, create full docker-agnostic
 # backup using mealie API, see mealie-trigger-backup.sh
-"$BACKUP_SCRIPT" \
-  -p ${SCRIPT_DIR}/.borg-pass-mealie \
-  -u "$HCHK_MEALIE" \
-  -i "${SCRIPT_DIR}/trigger-backup-scripts/mealie-trigger-backup.sh" \
-  -y ${DOCKER_COMPOSE_DIR}/mealie/compose.yaml \
-  -s $VG/$LV:${DOCKER_BINDS_DIR}/mealie \
-  -s $VG/$LV:${DOCKER_VOL_LOC}/mealie_data \
-  -d "${BACKUP_LOC}/mealie/borg" \
-  -d "${BACKUP_SSH}/mealie/borg" \
-  2>&1 \
-  | tee -a ${LOGS_DIR}/backup-mealie.log
+if service_enabled mealie; then
+  "$BACKUP_SCRIPT" \
+    -p ${SCRIPT_DIR}/.borg-pass-mealie \
+    -u "$HCHK_MEALIE" \
+    -i "${SCRIPT_DIR}/trigger-backup-scripts/mealie-trigger-backup.sh" \
+    -y ${DOCKER_COMPOSE_DIR}/mealie/compose.yaml \
+    -s $VG/$LV:${DOCKER_BINDS_DIR}/mealie \
+    -s $VG/$LV:${DOCKER_VOL_LOC}/mealie_data \
+    -d "${BACKUP_LOC}/mealie/borg" \
+    -d "${BACKUP_SSH}/mealie/borg" \
+    2>&1 \
+    | tee -a ${LOGS_DIR}/backup-mealie.log
+fi
 
-## ollama
-#"$BACKUP_SCRIPT" \
-#  -p ${SCRIPT_DIR}/.borg-pass-ollama \
-#  -u "$HCHK_OLLAMA" \
-#  -y ${DOCKER_COMPOSE_DIR}/ollama/compose.yaml \
-#  -s $VG/$LV:${DOCKER_BINDS_DIR}/ollama \
-#  -s $VG/$LV:${DOCKER_VOL_LOC}/ollama_ollama_data/ \
-#  -s $VG/$LV:${DOCKER_VOL_LOC}/ollama_ollama_webui_data/ \
-#  -d "${BACKUP_LOC}/ollama/borg" \
-#  -d "${BACKUP_SSH}/ollama/borg" \
-#  2>&1 \
-#  | tee -a ${LOGS_DIR}/backup-ollama.log
+# ollama
+if service_enabled ollama; then
+  "$BACKUP_SCRIPT" \
+    -p ${SCRIPT_DIR}/.borg-pass-ollama \
+    -u "$HCHK_OLLAMA" \
+    -y ${DOCKER_COMPOSE_DIR}/ollama/compose.yaml \
+    -s $VG/$LV:${DOCKER_BINDS_DIR}/ollama \
+    -s $VG/$LV:${DOCKER_VOL_LOC}/ollama_ollama_data/ \
+    -s $VG/$LV:${DOCKER_VOL_LOC}/ollama_ollama_webui_data/ \
+    -d "${BACKUP_LOC}/ollama/borg" \
+    -d "${BACKUP_SSH}/ollama/borg" \
+    2>&1 \
+    | tee -a ${LOGS_DIR}/backup-ollama.log
+fi
 
-## searxng
-#"$BACKUP_SCRIPT" \
-#  -p ${SCRIPT_DIR}/.borg-pass-searxng \
-#  -u "$HCHK_SEARXNG" \
-#  -y ${DOCKER_COMPOSE_DIR}/searxng/compose.yaml \
-#  -s $VG/$LV:${DOCKER_BINDS_DIR}/searxng \
-#  -s $VG/$LV:${DOCKER_VOL_LOC}/searxng_searxng-data \
-#  -s $VG/$LV:${DOCKER_VOL_LOC}/searxng_valkey-data2 \
-#  -d "${BACKUP_LOC}/searxng/borg" \
-#  -d "${BACKUP_SSH}/searxng/borg" \
-#  2>&1 \
-#  | tee -a ${LOGS_DIR}/backup-searxng.log
+# searxng
+if service_enabled searxng; then
+  "$BACKUP_SCRIPT" \
+    -p ${SCRIPT_DIR}/.borg-pass-searxng \
+    -u "$HCHK_SEARXNG" \
+    -y ${DOCKER_COMPOSE_DIR}/searxng/compose.yaml \
+    -s $VG/$LV:${DOCKER_BINDS_DIR}/searxng \
+    -s $VG/$LV:${DOCKER_VOL_LOC}/searxng_searxng-data \
+    -s $VG/$LV:${DOCKER_VOL_LOC}/searxng_valkey-data2 \
+    -d "${BACKUP_LOC}/searxng/borg" \
+    -d "${BACKUP_SSH}/searxng/borg" \
+    2>&1 \
+    | tee -a ${LOGS_DIR}/backup-searxng.log
+fi
 
-## stirling
-#"$BACKUP_SCRIPT" \
-#  -p ${SCRIPT_DIR}/.borg-pass-stirling \
-#  -u "$HCHK_STIRLING" \
-#  -y ${DOCKER_COMPOSE_DIR}/stirling/compose.yaml \
-#  -s $VG/$LV:${DOCKER_BINDS_DIR}/stirling \
-#  -s $VG/$LV:${DOCKER_VOL_LOC}/stirling_caddy_certs \
-#  -s $VG/$LV:${DOCKER_VOL_LOC}/stirling_caddy_config \
-#  -s $VG/$LV:${DOCKER_VOL_LOC}/stirling_caddy_data \
-#  -s $VG/$LV:${DOCKER_VOL_LOC}/stirling_tailscale_sock \
-#  -d "${BACKUP_LOC}/stirling/borg" \
-#  -d "${BACKUP_SSH}/stirling/borg" \
-#  2>&1 \
-#  | tee -a ${LOGS_DIR}/backup-stirling.log
+# stirling
+if service_enabled stirling; then
+  "$BACKUP_SCRIPT" \
+    -p ${SCRIPT_DIR}/.borg-pass-stirling \
+    -u "$HCHK_STIRLING" \
+    -y ${DOCKER_COMPOSE_DIR}/stirling/compose.yaml \
+    -s $VG/$LV:${DOCKER_BINDS_DIR}/stirling \
+    -s $VG/$LV:${DOCKER_VOL_LOC}/stirling_caddy_certs \
+    -s $VG/$LV:${DOCKER_VOL_LOC}/stirling_caddy_config \
+    -s $VG/$LV:${DOCKER_VOL_LOC}/stirling_caddy_data \
+    -s $VG/$LV:${DOCKER_VOL_LOC}/stirling_tailscale_sock \
+    -d "${BACKUP_LOC}/stirling/borg" \
+    -d "${BACKUP_SSH}/stirling/borg" \
+    2>&1 \
+    | tee -a ${LOGS_DIR}/backup-stirling.log
+fi
 
-## firefly
-#"$BACKUP_SCRIPT" \
-#  -p ${SCRIPT_DIR}/.borg-pass-firefly \
-#  -u "$HCHK_FIREFLY" \
-#  -y ${DOCKER_COMPOSE_DIR}/firefly/compose.yaml \
-#  -s $VG/$LV:${DOCKER_VOL_LOC}/firefly_firefly_iii_upload \
-#  -s $VG/$LV:${DOCKER_VOL_LOC}/firefly_firefly_iii_db \
-#  -d "${BACKUP_LOC}/firefly/borg" \
-#  -d "${BACKUP_SSH}/firefly/borg" \
-#  2>&1 \
-#  | tee -a ${LOGS_DIR}/backup-firefly.log
+# firefly
+if service_enabled firefly; then
+  "$BACKUP_SCRIPT" \
+    -p ${SCRIPT_DIR}/.borg-pass-firefly \
+    -u "$HCHK_FIREFLY" \
+    -y ${DOCKER_COMPOSE_DIR}/firefly/compose.yaml \
+    -s $VG/$LV:${DOCKER_VOL_LOC}/firefly_firefly_iii_upload \
+    -s $VG/$LV:${DOCKER_VOL_LOC}/firefly_firefly_iii_db \
+    -d "${BACKUP_LOC}/firefly/borg" \
+    -d "${BACKUP_SSH}/firefly/borg" \
+    2>&1 \
+    | tee -a ${LOGS_DIR}/backup-firefly.log
+fi
 
 # actual
-"$BACKUP_SCRIPT" \
-  -p ${SCRIPT_DIR}/.borg-pass-actual \
-  -u "$HCHK_ACTUAL" \
-  -y ${DOCKER_COMPOSE_DIR}/actual/compose.yaml \
-  -s $VG/$LV:${DOCKER_BINDS_DIR}/actual/data/ \
-  -d "${BACKUP_LOC}/actual/borg" \
-  -d "${BACKUP_SSH}/actual/borg" \
-  2>&1 \
-  | tee -a ${LOGS_DIR}/backup-actual.log
+if service_enabled actual; then
+  "$BACKUP_SCRIPT" \
+    -p ${SCRIPT_DIR}/.borg-pass-actual \
+    -u "$HCHK_ACTUAL" \
+    -y ${DOCKER_COMPOSE_DIR}/actual/compose.yaml \
+    -s $VG/$LV:${DOCKER_BINDS_DIR}/actual/data/ \
+    -d "${BACKUP_LOC}/actual/borg" \
+    -d "${BACKUP_SSH}/actual/borg" \
+    2>&1 \
+    | tee -a ${LOGS_DIR}/backup-actual.log
+fi
 
 # template
-#"$BACKUP_SCRIPT" \
-#  -p ${SCRIPT_DIR}/.borg-pass- \
-#  -u "https://hc-ping.com/XXX" \
-#  -i "${SCRIPT_DIR}/trigger-backup-scripts/XXX-trigger-backup.sh" \
-#  -y ${DOCKER_COMPOSE_DIR}/XXX/compose.yaml \
-#  -c container_post\
-#  -C container_pre\
-#  -s $VG/$LV:${DOCKER_BINDS_DIR}/paperless/consume/ \
-#  -s $VG/$LV:${DOCKER_VOL_LOC}/XXX \ 
-#  -d "${BACKUP_LOC}/paperless/borg" \
-#  -d "${BACKUP_SSH}/paperless/borg" \
-#  -f "--verbose" \
-#  2>&1 \
-#  | tee -a ${LOGS_DIR}/backup-firefly.log
+#if service_enabled XXX; then
+#  "$BACKUP_SCRIPT" \
+#    -p ${SCRIPT_DIR}/.borg-pass-XXX \
+#    -u "https://hc-ping.com/XXX" \
+#    -i "${SCRIPT_DIR}/trigger-backup-scripts/XXX-trigger-backup.sh" \
+#    -y ${DOCKER_COMPOSE_DIR}/XXX/compose.yaml \
+#    -c container_post \
+#    -C container_pre \
+#    -s $VG/$LV:${DOCKER_BINDS_DIR}/XXX/ \
+#    -s $VG/$LV:${DOCKER_VOL_LOC}/XXX \
+#    -d "${BACKUP_LOC}/XXX/borg" \
+#    -d "${BACKUP_SSH}/XXX/borg" \
+#    -f "--verbose" \
+#    2>&1 \
+#    | tee -a ${LOGS_DIR}/backup-XXX.log
+#fi
