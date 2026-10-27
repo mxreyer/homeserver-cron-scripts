@@ -26,7 +26,7 @@ TMP_BACKUP_DIR="${DOCKER_BINDS_DIR}/healthchecks/backup"
 
 # === Dump database ===
 echo "💩 dumping postgres database..."
-if ! (docker exec -t healthchecks-db-1 pg_dumpall --clean --if-exists --username=postgres > ${TMP_BACKUP_DIR}/healthchecks_postgres_dump.sql); then
+if ! (docker exec healthchecks-db-1 pg_dumpall --clean --if-exists --username=postgres > ${TMP_BACKUP_DIR}/healthchecks_postgres_dump.sql); then
   echo "❌ Database dump failed."
   exit 1
 fi

@@ -26,7 +26,7 @@ IMMICH_UPLOAD_LOCATION="${DOCKER_BINDS_DIR}/immich/library"
 # === Dumping database ===
 echo "💩 dumping postgres database..."
 dumpfiledest="$IMMICH_UPLOAD_LOCATION"/database-backup/immich-database.sql
-if ! (docker exec -t immich-database-1 pg_dumpall --clean --if-exists --username=postgres > "$dumpfiledest"); then
+if ! (docker exec immich-database-1 pg_dumpall --clean --if-exists --username=postgres > "$dumpfiledest"); then
   echo "❌ Database dump failed."
   exit 1
 fi

@@ -71,7 +71,13 @@ stop_docker() {
 start_docker() {
   if [[ ! -z "$COMPOSE_FILE" ]]; then
     echo "🐳 Starting containers..."
-    docker compose -f "$COMPOSE_FILE" start "${STOP_CONTAINERS_PRE[@]}" "${STOP_CONTAINERS[@]}"
+    # without -c, stop_docker stopped all containers, so start all of them
+    # again (not just the -C ones, which would leave e.g. db/sidecars down)
+    if [[ ${#STOP_CONTAINERS[@]} -eq 0 ]]; then
+      docker compose -f "$COMPOSE_FILE" start
+    else
+      docker compose -f "$COMPOSE_FILE" start "${STOP_CONTAINERS_PRE[@]}" "${STOP_CONTAINERS[@]}"
+    fi
   fi
 }
 
