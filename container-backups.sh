@@ -11,6 +11,8 @@
 #     - Set up the scripts in trigger-backup-scripts (API keys etc)
 #
 # Notes:
+#     - Sources are snapshotted via LVM only if VG and LV are set in
+#       CONFIG.sh. Otherwise, the plain paths are backed up directly.
 #     - Only services listed in WEB_SERVICES (CONFIG.sh, space-separated) are
 #       backed up. Listed names without a backup block below (e.g. cloud) are
 #       skipped.
@@ -68,6 +70,13 @@ service_enabled() {
   [[ " ${WEB_SERVICES:-} " == *" $1 "* ]]
 }
 
+# snapshot sources via LVM only if VG and LV are set (see borg-append.sh)
+if [[ -z ${VG:-} ]] || [[ -z ${LV:-} ]]; then
+  SRC_PREFIX=""
+else
+  SRC_PREFIX="$VG/$LV:"
+fi
+
 # paperless
 # On top of backing up bind mounts and volumes, create full docker-agnostic
 # backup using "document exporter", see paperless-trigger-backup.sh
@@ -77,20 +86,20 @@ if service_enabled paperless; then
     -u "$HCHK_PAPERLESS" \
     -i "${SCRIPT_DIR}/trigger-backup-scripts/paperless-trigger-backup.sh" \
     -y ${DOCKER_COMPOSE_DIR}/paperless/compose.yaml \
-    -s $VG/$LV:${DOCKER_BINDS_DIR}/paperless/ \
-    -s $VG/$LV:${DOCKER_BINDS_DIR}/paperless-gpt/ \
-    -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_caddy_certs \
-    -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_caddy_config \
-    -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_caddy_data \
-    -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_data \
-    -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_caddy_certs_gpt \
-    -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_caddy_config_gpt \
-    -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_caddy_data_gpt \
-    -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_media \
-    -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_pgdata \
-    -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_redisdata \
-    -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_tailscale_sock \
-    -s $VG/$LV:${DOCKER_VOL_LOC}/paperless_tailscale_sock_gpt \
+    -s ${SRC_PREFIX}${DOCKER_BINDS_DIR}/paperless/ \
+    -s ${SRC_PREFIX}${DOCKER_BINDS_DIR}/paperless-gpt/ \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/paperless_caddy_certs \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/paperless_caddy_config \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/paperless_caddy_data \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/paperless_data \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/paperless_caddy_certs_gpt \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/paperless_caddy_config_gpt \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/paperless_caddy_data_gpt \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/paperless_media \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/paperless_pgdata \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/paperless_redisdata \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/paperless_tailscale_sock \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/paperless_tailscale_sock_gpt \
     -d "${BACKUP_LOC}/paperless/borg" \
     -d "${BACKUP_SSH}/paperless/borg" \
     2>&1 \
@@ -107,8 +116,8 @@ if service_enabled immich; then
     -i "${SCRIPT_DIR}/trigger-backup-scripts/immich-trigger-backup.sh" \
     -y ${DOCKER_COMPOSE_DIR}/immich/compose.yaml \
     -C immich-server -C immich-machine-learning -C redis \
-    -s $VG/$LV:${DOCKER_BINDS_DIR}/immich \
-    -s $VG/$LV:${DOCKER_VOL_LOC}/immich_model-cache \
+    -s ${SRC_PREFIX}${DOCKER_BINDS_DIR}/immich \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/immich_model-cache \
     -e ${DOCKER_BINDS_DIR}/immich/library/thumbs/ \
     -e ${DOCKER_BINDS_DIR}/immich/library/encoded-video/ \
     -d "${BACKUP_LOC}/immich/borg" \
@@ -126,7 +135,7 @@ if service_enabled beszel; then
     -u "$HCHK_BESZEL" \
     -i "${SCRIPT_DIR}/trigger-backup-scripts/beszel-trigger-backup.sh" \
     -y ${DOCKER_COMPOSE_DIR}/beszel/compose.yaml \
-    -s $VG/$LV:${DOCKER_BINDS_DIR}/beszel \
+    -s ${SRC_PREFIX}${DOCKER_BINDS_DIR}/beszel \
     -d "${BACKUP_LOC}/beszel/borg" \
     -d "${BACKUP_SSH}/beszel/borg" \
     2>&1 \
@@ -143,12 +152,12 @@ if service_enabled healthchecks; then
     -i "${SCRIPT_DIR}/trigger-backup-scripts/healthchecks-trigger-backup.sh" \
     -y ${DOCKER_COMPOSE_DIR}/healthchecks/compose.yaml \
     -C web \
-    -s $VG/$LV:${DOCKER_BINDS_DIR}/healthchecks \
-    -s $VG/$LV:${DOCKER_VOL_LOC}/healthchecks_caddy_certs \
-    -s $VG/$LV:${DOCKER_VOL_LOC}/healthchecks_caddy_config \
-    -s $VG/$LV:${DOCKER_VOL_LOC}/healthchecks_caddy_data \
-    -s $VG/$LV:${DOCKER_VOL_LOC}/healthchecks_db_data \
-    -s $VG/$LV:${DOCKER_VOL_LOC}/healthchecks_tailscale_sock \
+    -s ${SRC_PREFIX}${DOCKER_BINDS_DIR}/healthchecks \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/healthchecks_caddy_certs \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/healthchecks_caddy_config \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/healthchecks_caddy_data \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/healthchecks_db_data \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/healthchecks_tailscale_sock \
     -d "${BACKUP_LOC}/healthchecks/borg" \
     -d "${BACKUP_SSH}/healthchecks/borg" \
     2>&1 \
@@ -164,8 +173,8 @@ if service_enabled mealie; then
     -u "$HCHK_MEALIE" \
     -i "${SCRIPT_DIR}/trigger-backup-scripts/mealie-trigger-backup.sh" \
     -y ${DOCKER_COMPOSE_DIR}/mealie/compose.yaml \
-    -s $VG/$LV:${DOCKER_BINDS_DIR}/mealie \
-    -s $VG/$LV:${DOCKER_VOL_LOC}/mealie_data \
+    -s ${SRC_PREFIX}${DOCKER_BINDS_DIR}/mealie \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/mealie_data \
     -d "${BACKUP_LOC}/mealie/borg" \
     -d "${BACKUP_SSH}/mealie/borg" \
     2>&1 \
@@ -178,9 +187,9 @@ if service_enabled ollama; then
     -p ${SCRIPT_DIR}/.borg-pass-ollama \
     -u "$HCHK_OLLAMA" \
     -y ${DOCKER_COMPOSE_DIR}/ollama/compose.yaml \
-    -s $VG/$LV:${DOCKER_BINDS_DIR}/ollama \
-    -s $VG/$LV:${DOCKER_VOL_LOC}/ollama_ollama_data/ \
-    -s $VG/$LV:${DOCKER_VOL_LOC}/ollama_ollama_webui_data/ \
+    -s ${SRC_PREFIX}${DOCKER_BINDS_DIR}/ollama \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/ollama_ollama_data/ \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/ollama_ollama_webui_data/ \
     -d "${BACKUP_LOC}/ollama/borg" \
     -d "${BACKUP_SSH}/ollama/borg" \
     2>&1 \
@@ -193,9 +202,9 @@ if service_enabled searxng; then
     -p ${SCRIPT_DIR}/.borg-pass-searxng \
     -u "$HCHK_SEARXNG" \
     -y ${DOCKER_COMPOSE_DIR}/searxng/compose.yaml \
-    -s $VG/$LV:${DOCKER_BINDS_DIR}/searxng \
-    -s $VG/$LV:${DOCKER_VOL_LOC}/searxng_searxng-data \
-    -s $VG/$LV:${DOCKER_VOL_LOC}/searxng_valkey-data2 \
+    -s ${SRC_PREFIX}${DOCKER_BINDS_DIR}/searxng \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/searxng_searxng-data \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/searxng_valkey-data2 \
     -d "${BACKUP_LOC}/searxng/borg" \
     -d "${BACKUP_SSH}/searxng/borg" \
     2>&1 \
@@ -208,11 +217,11 @@ if service_enabled stirling; then
     -p ${SCRIPT_DIR}/.borg-pass-stirling \
     -u "$HCHK_STIRLING" \
     -y ${DOCKER_COMPOSE_DIR}/stirling/compose.yaml \
-    -s $VG/$LV:${DOCKER_BINDS_DIR}/stirling \
-    -s $VG/$LV:${DOCKER_VOL_LOC}/stirling_caddy_certs \
-    -s $VG/$LV:${DOCKER_VOL_LOC}/stirling_caddy_config \
-    -s $VG/$LV:${DOCKER_VOL_LOC}/stirling_caddy_data \
-    -s $VG/$LV:${DOCKER_VOL_LOC}/stirling_tailscale_sock \
+    -s ${SRC_PREFIX}${DOCKER_BINDS_DIR}/stirling \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/stirling_caddy_certs \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/stirling_caddy_config \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/stirling_caddy_data \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/stirling_tailscale_sock \
     -d "${BACKUP_LOC}/stirling/borg" \
     -d "${BACKUP_SSH}/stirling/borg" \
     2>&1 \
@@ -225,8 +234,8 @@ if service_enabled firefly; then
     -p ${SCRIPT_DIR}/.borg-pass-firefly \
     -u "$HCHK_FIREFLY" \
     -y ${DOCKER_COMPOSE_DIR}/firefly/compose.yaml \
-    -s $VG/$LV:${DOCKER_VOL_LOC}/firefly_firefly_iii_upload \
-    -s $VG/$LV:${DOCKER_VOL_LOC}/firefly_firefly_iii_db \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/firefly_firefly_iii_upload \
+    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/firefly_firefly_iii_db \
     -d "${BACKUP_LOC}/firefly/borg" \
     -d "${BACKUP_SSH}/firefly/borg" \
     2>&1 \
@@ -239,7 +248,7 @@ if service_enabled actual; then
     -p ${SCRIPT_DIR}/.borg-pass-actual \
     -u "$HCHK_ACTUAL" \
     -y ${DOCKER_COMPOSE_DIR}/actual/compose.yaml \
-    -s $VG/$LV:${DOCKER_BINDS_DIR}/actual/data/ \
+    -s ${SRC_PREFIX}${DOCKER_BINDS_DIR}/actual/data/ \
     -d "${BACKUP_LOC}/actual/borg" \
     -d "${BACKUP_SSH}/actual/borg" \
     2>&1 \
@@ -255,8 +264,8 @@ fi
 #    -y ${DOCKER_COMPOSE_DIR}/XXX/compose.yaml \
 #    -c container_post \
 #    -C container_pre \
-#    -s $VG/$LV:${DOCKER_BINDS_DIR}/XXX/ \
-#    -s $VG/$LV:${DOCKER_VOL_LOC}/XXX \
+#    -s ${SRC_PREFIX}${DOCKER_BINDS_DIR}/XXX/ \
+#    -s ${SRC_PREFIX}${DOCKER_VOL_LOC}/XXX \
 #    -d "${BACKUP_LOC}/XXX/borg" \
 #    -d "${BACKUP_SSH}/XXX/borg" \
 #    -f "--verbose" \
