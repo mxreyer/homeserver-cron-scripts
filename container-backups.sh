@@ -70,12 +70,16 @@ service_enabled() {
   [[ " ${WEB_SERVICES:-} " == *" $1 "* ]]
 }
 
-# snapshot sources via LVM only if VG and LV are set (see borg-append.sh)
-if [[ -z ${VG:-} ]] || [[ -z ${LV:-} ]]; then
-  SRC_PREFIX=""
-else
-  SRC_PREFIX="$VG/$LV:"
-fi
+## snapshot sources via LVM only if VG and LV are set (see borg-append.sh)
+#if [[ -z ${VG:-} ]] || [[ -z ${LV:-} ]]; then
+#  SRC_PREFIX=""
+#else
+#  SRC_PREFIX="$VG/$LV:"
+#fi
+
+# actually, because we already stop containers pre-backup, LVM snapshots are
+# not required for container volumes and bind mounts. Disable.
+SRC_PREFIX=""
 
 # paperless
 # On top of backing up bind mounts and volumes, create full docker-agnostic
