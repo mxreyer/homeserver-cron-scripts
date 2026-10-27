@@ -4,6 +4,8 @@
 # Description: Provides functions to stop and restart all docker containers
 #
 # Note:
+#   - Nextcloud AIO containers are only stopped/started if "cloud" is
+#     listed in WEB_SERVICES (CONFIG.sh).
 #   - Consider implementing a healthcheck?
 #     I.e. ping failure if docker compose up throws error.
 # ==============================================================================
@@ -24,6 +26,11 @@ docker ps \
 # remove empty lines stemming from containers that are not part of a compose project 
 sed -i '/^\s*$/d' "$tmp_docker_file"
 
+# true if Nextcloud ("cloud") is listed in the space-separated WEB_SERVICES
+nextcloud_enabled() {
+  [[ " ${WEB_SERVICES:-} " == *" cloud "* ]]
+}
+
 stop_docker() {
   echo "🐳 Stopping containers..."
   echo "🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊🌊"
@@ -33,16 +40,18 @@ stop_docker() {
     return 1
   fi
   # stop nextcloud containers through daily-backup script of nextcloud-aio-mastercontainer
-  echo "Stopping ☁️  Nextcloud containers..."
-  responsefile=$(mktemp)
-  docker exec --env DAILY_BACKUP=0 --env STOP_CONTAINERS=1 --env START_CONTAINERS=0 \
-    nextcloud-aio-mastercontainer /daily-backup.sh 2>&1 | tee "$responsefile"
-  if $(grep -i "error" -q "$responsefile"); then
-    echo "Error stopping nextcloud containers."
-    rm "$responsefile"
-    return 1
+  if nextcloud_enabled; then
+    echo "Stopping ☁️  Nextcloud containers..."
+    responsefile=$(mktemp)
+    docker exec --env DAILY_BACKUP=0 --env STOP_CONTAINERS=1 --env START_CONTAINERS=0 \
+      nextcloud-aio-mastercontainer /daily-backup.sh 2>&1 | tee "$responsefile"
+    if $(grep -i "error" -q "$responsefile"); then
+      echo "Error stopping nextcloud containers."
+      rm "$responsefile"
+      return 1
+    fi
+    rm "$responsefile";
   fi
-  rm "$responsefile";
   # stop compose projects
   while read -r project dir; do
     echo "Stopping 🎼 compose project $project in $dir"
@@ -71,16 +80,18 @@ start_docker() {
     (cd "$dir" && docker compose up -d)
   done < "$tmp_docker_file"
   # start nextcloud containers through daily-backup script of nextcloud-aio-mastercontainer
-  echo "Starting ☁️  Nextcloud containers..."
-  responsefile=$(mktemp)
-  docker exec --env DAILY_BACKUP=0 --env STOP_CONTAINERS=0 --env START_CONTAINERS=1 \
-    nextcloud-aio-mastercontainer /daily-backup.sh 2>&1 | tee "$responsefile"
-  if $(grep -i "error" -q "$responsefile"); then
-    echo "Error starting nextcloud containers."
-    rm "$responsefile"
-    return 1
+  if nextcloud_enabled; then
+    echo "Starting ☁️  Nextcloud containers..."
+    responsefile=$(mktemp)
+    docker exec --env DAILY_BACKUP=0 --env STOP_CONTAINERS=0 --env START_CONTAINERS=1 \
+      nextcloud-aio-mastercontainer /daily-backup.sh 2>&1 | tee "$responsefile"
+    if $(grep -i "error" -q "$responsefile"); then
+      echo "Error starting nextcloud containers."
+      rm "$responsefile"
+      return 1
+    fi
+    rm "$responsefile";
   fi
-  rm "$responsefile";
 }
 
 pull_docker() {
