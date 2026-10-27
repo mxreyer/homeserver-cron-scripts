@@ -106,14 +106,16 @@ for repo in $BORG_REPOS; do
   # passfile is logged. `head -n 1` matches how the passphrase was read before.
   printf -v BORG_PASSCMD 'head -n 1 -- %q' "$BORG_PASS_FILE"
 
-  if [[ $BORG_ARCHIVE == latest ]] && [[ ! $BORG_ACTION =~ (init|list|compact|umount|unmount|delete) ]]; then
+  # resolve "latest" per repo: archive names differ between repos
+  archive="$BORG_ARCHIVE"
+  if [[ $archive == latest ]] && [[ ! $BORG_ACTION =~ (init|list|compact|umount|unmount|delete) ]]; then
     echo "ℹ️  No archive name provided. 🔎 Find latest archive..."
-    BORG_ARCHIVE=$(sudo BORG_PASSCOMMAND="$BORG_PASSCMD" borg list --short --last 1 "$repopath")
-    if [[ -z "$BORG_ARCHIVE" ]]; then
+    archive=$(sudo BORG_PASSCOMMAND="$BORG_PASSCMD" borg list --short --last 1 "$repopath")
+    if [[ -z "$archive" ]]; then
       echo "❌ No archives found in $repopath"
       exit 1
     fi
-    echo "👍 ... found latest=$BORG_ARCHIVE"
+    echo "👍 ... found latest=$archive"
   fi
 
   #if [[ "$BORG_ACTION" == *mount ]] && [[ -z "$BORG_MOUNT_BASE" ]]; then
@@ -139,9 +141,9 @@ for repo in $BORG_REPOS; do
       else
         mkdir -p "$BORG_MOUNTPOINT"
       fi
-      echo "archive: " "$repopath"::"$BORG_ARCHIVE"
+      echo "archive: " "$repopath"::"$archive"
       echo "mountpoint: ${BORG_MOUNTPOINT}"
-      sudo BORG_PASSCOMMAND="$BORG_PASSCMD" borg mount "$repopath"::"$BORG_ARCHIVE" ${BORG_MOUNTPOINT}
+      sudo BORG_PASSCOMMAND="$BORG_PASSCMD" borg mount "$repopath"::"$archive" ${BORG_MOUNTPOINT}
       ;;
 
     "unmount"|"umount") 
@@ -152,7 +154,7 @@ for repo in $BORG_REPOS; do
 
     "list-archive") 
       echo "list archive..."
-      sudo BORG_PASSCOMMAND="$BORG_PASSCMD" borg list "$repopath"::"$BORG_ARCHIVE" --format="{mode} {user} {group} {path}{NL}"
+      sudo BORG_PASSCOMMAND="$BORG_PASSCMD" borg list "$repopath"::"$archive" --format="{mode} {user} {group} {path}{NL}"
       ;;
 
     "list") 
@@ -177,20 +179,20 @@ for repo in $BORG_REPOS; do
     
     "delete") 
       echo "delete..."
-      sudo BORG_PASSCOMMAND="$BORG_PASSCMD" borg delete "$repopath"::"$BORG_ARCHIVE"
+      sudo BORG_PASSCOMMAND="$BORG_PASSCMD" borg delete "$repopath"::"$archive"
       ;;
 
     "extract") 
       echo "extract..."
       (cd /; sudo BORG_PASSCOMMAND="$BORG_PASSCMD" borg extract \
-        "$repopath"::"$BORG_ARCHIVE")
+        "$repopath"::"$archive")
       ;;
 
     "extract-exclude-sidecars") 
       echo "extract (without tailscale/caddy sidecar volumes)..."
       (cd /; sudo BORG_PASSCOMMAND="$BORG_PASSCMD" borg extract \
         --exclude='*tailscale*' --exclude='*caddy*' \
-        "$repopath"::"$BORG_ARCHIVE")
+        "$repopath"::"$archive")
       ;; 
 
     *) 

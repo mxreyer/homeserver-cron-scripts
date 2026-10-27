@@ -34,11 +34,11 @@ Store passphrases in `.borg-pass-server` and `.borg-pass-containers` (chmod 600)
 Add to crontab:
 
 ```bash
-# Server backup - daily at 3 AM
+# Server backup - daily at 2 AM
 0 3 * * * /bin/bash -c '/path/to/server-backup.sh >> /path/to/logs/server-backup.log 2>&1'
 
-# Container backups - weekly on Monday at 3 AM
-0 3 * * 1 /bin/bash -c '/path/to/container-backups.sh >> /path/to/logs/container-backups.log 2>&1'
+# Container backups - daily at 3 AM
+0 3 * * * /bin/bash -c '/path/to/container-backups.sh >> /path/to/logs/container-backups.log 2>&1'
 
 # Container updates - weekly on Monday at 4:30 AM
 30 4 * * 1 /bin/bash -c '/path/to/auto-container-update.sh >> /path/to/logs/auto-container-update.log 2>&1'
