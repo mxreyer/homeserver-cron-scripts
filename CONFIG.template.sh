@@ -12,6 +12,7 @@ ADD_SERVER_BACKUP_EXCLSNS="" # e.g. log files that often change during backup,
                              # backup not possible)
 VG=""
 LV=""
+LVM_SNAPSHOT_PV=""
 LOGS_DIR=""
 
 # Healthchecks
@@ -28,6 +29,8 @@ HCHK_MEALIE=""
 HCHK_OLLAMA=""
 HCHK_SEARXNG=""
 HCHK_STIRLING=""
+HCHK_FIREFLY=""
+HCHK_ACTUAL=""
 
 # API Keys
 APIKY_BESZEL=""
