@@ -1,7 +1,7 @@
 > [!IMPORTANT]
 > 🕸️ This repo is archived!
-> Decided to use borgmatic and one borg repo for all my files.
-> Instead of completely re-writing this repo, switched a new one: https://github.com/mxreyer/homeserver-ops
+> Decided to use borgmatic and only one borg repo for everything (server files and docker volumes).
+> Instead of completely re-writing this project, switched a new repo: https://github.com/mxreyer/homeserver-ops
 
 # Homeserver Cron Scripts
 
