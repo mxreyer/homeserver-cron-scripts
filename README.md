@@ -1,4 +1,4 @@
-> [!info] 🕸️ Archived!
+> [!WARNING] 🕸️ Archived!
 > Decided to use borgmatic and one borg repo for all my files.
 > Instead of completely re-writing this repo, switched a new one: https://github.com/mxreyer/homeserver-ops
 
