@@ -1,3 +1,7 @@
+> [!info] 🕸️ Archived!
+> Decided to use borgmatic and one borg repo for all my files.
+> Instead of completely re-writing this repo, switched a new one: https://github.com/mxreyer/homeserver-ops
+
 # Homeserver Cron Scripts
 
 A collection of bash scripts for automating homeserver operations including backups, container updates, health monitoring, and system maintenance.
